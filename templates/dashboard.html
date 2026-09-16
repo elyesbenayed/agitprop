@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>la france humaniste — comptes instagram</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;0,600;0,800;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --beige:#fdf4df; --noir:#000000; --rouge:#e83f13; --bleu:#2828ea;
+    --bleu-pale:#9fc6d1; --jaune:#fcd227; --vert:#1c7768; --rose:#f7b7c4;
+    --gris:#b5b5b5; --gris-texte:#6b6b6b; --gris-fond:#f2f2f2;
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Poppins',system-ui,sans-serif;background:#fff;color:var(--noir);
+       letter-spacing:-.025em;margin:0;padding:1.6rem;max-width:1200px;margin-inline:auto}
+  header{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+         flex-wrap:wrap;margin-bottom:1.6rem;padding-bottom:1.1rem;border-bottom:1.5px solid var(--noir)}
+  .logo{height:54px}
+  .who{font-weight:600;font-size:.85rem;text-align:right}
+  .who a{color:var(--bleu);font-weight:800;text-transform:lowercase;text-decoration:none}
+  .who a:hover{color:var(--noir)}
+  h2{font-weight:800;text-transform:lowercase;font-size:1.15rem;margin:0 0 .7rem;line-height:1.1}
+  .card{background:#fff;border:1.5px solid var(--noir);border-radius:18px;padding:1.5rem;margin-bottom:1.2rem}
+  .pills{display:flex;gap:.8rem;flex-wrap:wrap}
+  .pill{border-radius:14px;padding:.9rem 1.3rem;font-weight:600;font-size:.85rem;flex:1;min-width:160px;
+        background:#fff;border:1.5px solid var(--noir)}
+  .pill b{display:block;font-size:1.6rem;font-weight:800;line-height:1.1;color:var(--bleu)}
+  .pill.jaune,.pill.pale,.pill.rose{background:#fff}
+  input,textarea,select{width:100%;padding:.7rem 1rem;margin:.3rem 0;border:1.5px solid var(--noir);
+        border-radius:12px;font:inherit;font-weight:500;background:#fff}
+  textarea{resize:none}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--bleu);border-color:var(--bleu)}
+  .invalid{border-color:var(--rouge) !important;background:#fff !important}
+  .invalid::placeholder{color:var(--rouge)}
+  .filerow{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:.5rem 0 .9rem}
+  .filebtn{display:inline-block;padding:.7rem 1.6rem;border:1.5px solid var(--noir);border-radius:999px;
+           background:#fff;color:var(--noir);font-weight:800;text-transform:lowercase;
+           cursor:pointer;transition:all .15s}
+  .filebtn:hover{background:var(--bleu);border-color:var(--bleu);color:#fff}
+  .filename{font-size:.82rem;font-weight:600;color:var(--gris-texte)}
+  button{padding:.7rem 1.6rem;border:0;border-radius:999px;background:var(--bleu);color:#fff;
+         font:inherit;font-weight:800;text-transform:lowercase;cursor:pointer;transition:background .15s}
+  button:hover{background:var(--noir)}
+  button:disabled{background:#a8a8a8;cursor:not-allowed}
+  button:disabled:hover{background:#a8a8a8}
+  .hint{margin:.2rem 0 .8rem;color:var(--gris-texte);font-size:.8rem;font-weight:500}
+  .hint code{background:var(--gris-fond);padding:.1rem .4rem;border-radius:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:.6rem}
+  .acc{padding:.65rem .8rem;border-radius:14px;font-size:.78rem;font-weight:600;
+       cursor:pointer;transition:transform .1s;border:1.5px solid transparent}
+  .acc:hover{transform:translateY(-2px);border-color:var(--noir)}
+  .acc b{font-weight:800;font-size:.95rem}
+  .acc small{display:block;font-weight:500;opacity:.85}
+  .unlinked{background:#fff;border:1.5px dashed var(--gris);color:var(--gris-texte)}
+  .active{background:var(--bleu);color:#fff}
+  .token_expired,.compromised{background:var(--rouge);color:#fff}
+  .suspended{background:var(--noir);color:#fff}
+  .msg{font-weight:600;font-size:.85rem;margin:.5rem 0 0}
+  .msg.ok{color:var(--bleu)} .msg.ko{color:var(--rouge)}
+  .legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.75rem;font-weight:600;margin-top:.8rem}
+  .dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:.3rem}
+
+  /* ---- apercu reseaux ---- */
+  .prevhead{display:flex;align-items:center;gap:1rem;margin-top:1.4rem;flex-wrap:wrap}
+  .ptoggle{display:none;gap:.5rem}
+  .pt{padding:.45rem 1.1rem;border-radius:999px;border:1.5px solid var(--noir);background:#fff;
+      color:var(--noir);font-weight:800;text-transform:lowercase;cursor:pointer}
+  .pt.active{background:var(--noir);color:#fff}
+  .pt:hover{background:var(--bleu);border-color:var(--bleu);color:#fff}
+  .mockwrap{display:flex;justify-content:center;margin-top:.8rem}
+  .mock{width:min(380px,100%);background:#fff;border:1px solid #dbdbdb;border-radius:10px;
+        overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+        letter-spacing:0;color:#262626;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+  .mock *{letter-spacing:0;text-transform:none}
+  .mhead{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem}
+  .mavatar{width:34px;height:34px;border-radius:50%;background:var(--gris-fond);display:flex;
+           align-items:center;justify-content:center;overflow:hidden;border:1px solid #dbdbdb;flex:none}
+  .mavatar img{width:80%;object-fit:contain}
+  .mname{font-weight:600;font-size:.85rem;line-height:1.2}
+  .msub{font-size:.72rem;color:#737373}
+  .mdots{margin-left:auto;font-weight:700;color:#262626}
+  .mmedia{position:relative;background:#000}
+  .mmedia img,.mmedia video{width:100%;display:block;object-fit:cover;background:#111}
+  .sq img,.sq video{aspect-ratio:1/1}
+  .tall img,.tall video{aspect-ratio:9/16}
+  .igslider{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .igslider::-webkit-scrollbar{display:none}
+  .igslide{flex:0 0 100%;scroll-snap-align:center}
+  .snav{position:absolute;top:50%;transform:translateY(-50%);width:28px;height:28px;
+        border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#262626;font-size:1rem;
+        font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+        padding:0;line-height:1;z-index:2}
+  .snav:hover{background:#fff}
+  .snav.left{left:8px}.snav.right{right:8px}
+  .scount{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.65);color:#fff;
+          font-size:.72rem;font-weight:600;padding:.15rem .55rem;border-radius:999px;z-index:2}
+  .mdotsrow{display:flex;justify-content:center;gap:4px;padding:.5rem 0 0}
+  .mdot{width:6px;height:6px;border-radius:50%;background:#c7c7c7}
+  .mdot.on{background:#0095f6}
+  .mactions{display:flex;gap:.9rem;padding:.6rem .8rem .2rem;font-size:1.25rem}
+  .mactions span:last-child{margin-left:auto}
+  .mlikes{padding:.1rem .8rem;font-weight:600;font-size:.85rem}
+  .mcap{padding:.15rem .8rem .9rem;font-size:.85rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+  .mcap b{font-weight:600}
+  .mtime{padding:0 .8rem .8rem;font-size:.7rem;color:#737373;text-transform:uppercase}
+  .fbgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#fff}
+  .fbgrid .cell{position:relative}
+  .fbgrid img{width:100%;height:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+  .fbmore{position:absolute;inset:0;background:rgba(0,0,0,.55);color:#fff;display:flex;
+          align-items:center;justify-content:center;font-size:1.6rem;font-weight:700}
+  .fbtext{padding:.2rem .8rem .7rem;font-size:.9rem;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+  .fbstats{display:flex;justify-content:space-between;padding:.5rem .8rem;font-size:.8rem;
+           color:#65676b;border-bottom:1px solid #e4e6eb}
+  .fbbtns{display:flex;justify-content:space-around;padding:.35rem .4rem;color:#65676b;
+          font-size:.85rem;font-weight:600}
+  .fbbtns span{padding:.35rem .8rem;border-radius:6px;cursor:default}
+  .fbbtns span:hover{background:#f0f2f5}
+  .fbbtns span{display:flex;align-items:center;gap:.4rem}
+  .fbstats .likebadge{display:inline-flex;align-items:center;justify-content:center;width:18px;
+                      height:18px;border-radius:50%;background:#1877f2;vertical-align:-4px;margin-right:4px}
+  .mactions span{display:flex;align-items:center}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;
+         justify-content:center;z-index:50;padding:2.5rem 1rem;overflow:auto}
+  .modal.open{display:flex}
+  .mpanel{background:#fff;border-radius:18px;padding:1.5rem;width:min(460px,96vw);
+          position:relative;box-shadow:0 18px 60px rgba(0,0,0,.3)}
+  .mclose{position:absolute;top:.9rem;right:.9rem;width:34px;height:34px;border-radius:50%;
+          background:#fff;color:var(--noir);border:1.5px solid var(--noir);font-size:.85rem;
+          font-weight:800;padding:0;display:flex;align-items:center;justify-content:center}
+  .mclose:hover{background:var(--noir);color:#fff}
+  .ghostbtn{background:#fff;color:var(--noir);border:1.5px solid var(--noir)}
+  .ghostbtn:hover{background:var(--noir);color:#fff}
+  #surepop{align-items:center}
+  .danger{background:var(--rouge)}
+  .danger:hover{background:var(--noir)}
+  .vidwrap{position:relative}
+  .mutebtn{position:absolute;right:10px;bottom:12px;width:30px;height:30px;border-radius:50%;
+           background:rgba(38,38,38,.8);border:0;color:#fff;display:flex;align-items:center;
+           justify-content:center;padding:0;z-index:2;cursor:pointer}
+  .mutebtn:hover{background:rgba(38,38,38,.95)}
+  .fbprog{position:absolute;left:0;right:0;bottom:0;height:3px;
+          background:rgba(255,255,255,.35);z-index:2}
+  .fbprog i{display:block;height:100%;width:0;background:#1877f2}
+  /* ---- story / reel facebook ---- */
+  .fbstory{position:relative;aspect-ratio:9/16;background:#000;display:flex;
+           flex-direction:column;overflow:hidden}
+  .fbstory .sprog{position:static;padding:8px 8px 0;display:flex;gap:4px}
+  .fbstory .shead{position:static;display:flex;align-items:center;gap:.55rem;
+                  padding:10px 12px;color:#fff}
+  .fbstory .stime{color:#b0b3b8;font-weight:500;margin-left:.15rem}
+  .smediabox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+             position:relative}
+  .smediabox img,.smediabox video{max-width:100%;max-height:100%;width:auto;height:auto;
+             object-fit:contain;border-radius:10px;display:block}
+  .smediabox .vidwrap{position:relative;width:100%;height:100%;display:flex;
+             align-items:center;justify-content:center}
+  .fbstory .mutebtn{display:flex;top:10px;left:12px;right:auto;bottom:auto}
+  .sbottom{display:flex;align-items:center;gap:.55rem;padding:10px 12px}
+  .scircle{width:38px;height:38px;border-radius:50%;background:#3a3b3c;display:flex;
+           align-items:center;justify-content:center;flex:none}
+  .sreply2{flex:1;background:#3a3b3c;border-radius:999px;padding:.62rem 1rem;
+           color:#b0b3b8;font-size:.85rem;font-weight:500}
+  .rxn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;
+       justify-content:center;flex:none}
+  .rxn.red{background:#f3425f}
+  .rxn.blue{background:#1877f2}
+  .reel{position:relative;aspect-ratio:9/16;background:#111;overflow:hidden}
+  .reel > img,.reel .vidwrap,.reel .vidwrap video{position:absolute;inset:0;
+        width:100%;height:100%;object-fit:cover;aspect-ratio:auto}
+  .reel .mutebtn{top:12px;right:12px;bottom:auto}
+  .rrail{position:absolute;right:10px;bottom:64px;display:flex;flex-direction:column;
+         gap:1.05rem;align-items:center;z-index:2;color:#fff;font-size:.72rem;font-weight:600}
+  .rrail div{display:flex;flex-direction:column;align-items:center;gap:.18rem}
+  .rinfo{position:absolute;left:10px;right:64px;bottom:14px;z-index:2;color:#fff}
+  .rname{display:flex;align-items:center;gap:.5rem;font-weight:600;font-size:.85rem}
+  .rname .mavatar{width:28px;height:28px;border:0}
+  .rfollow{border:1px solid rgba(255,255,255,.85);border-radius:6px;
+           padding:.08rem .5rem;font-size:.72rem;font-weight:600}
+  .rcap{font-size:.8rem;margin-top:.35rem;opacity:.95;display:-webkit-box;
+        -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+  .rcap.open{-webkit-line-clamp:unset}
+  .capmore{color:#737373;cursor:pointer;font-weight:500}
+  .capmore:hover{text-decoration:underline}
+  .fbtext .capmore{color:#65676b;font-weight:600}
+  /* ---- story instagram ---- */
+  .storymock{background:#000;border:0;border-radius:14px}
+  .story{position:relative;aspect-ratio:9/16;background:#111;overflow:hidden}
+  /* seul le media de fond est etire (pas l'avatar de l'en-tete) */
+  .story > img,.story .vidwrap,.story .vidwrap video{position:absolute;inset:0;
+                          width:100%;height:100%;object-fit:cover;aspect-ratio:auto}
+  .story .shead .mavatar img{position:static;width:80%;height:auto;object-fit:contain}
+  /* pas de bouton son sur une story (comme sur instagram) */
+  .story .mutebtn{display:none}
+  .sgrad{position:absolute;left:0;right:0;height:95px;z-index:1;pointer-events:none}
+  .sgrad.top{top:0;background:linear-gradient(rgba(0,0,0,.5),transparent)}
+  .sgrad.bottom{bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.45))}
+  .sprog{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:4px;z-index:2}
+  .sseg{flex:1;height:2.5px;background:rgba(255,255,255,.35);border-radius:2px;overflow:hidden}
+  .sfill{height:100%;background:#fff;border-radius:2px}
+  .shead{position:absolute;top:17px;left:10px;right:10px;display:flex;align-items:center;
+         gap:.5rem;z-index:2;color:#fff}
+  .shead .mavatar{width:30px;height:30px;border:0}
+  .sname{font-weight:600;font-size:.8rem}
+  .stime{font-size:.78rem;color:rgba(255,255,255,.75)}
+  .sdots{margin-left:auto;display:flex;cursor:default}
+  .sx{display:flex;cursor:default}
+  .sfoot{position:absolute;bottom:12px;left:10px;right:10px;display:flex;align-items:center;
+         gap:.7rem;z-index:2}
+  .sreply{flex:1;border:1px solid rgba(255,255,255,.85);border-radius:999px;
+          padding:.55rem .95rem;color:rgba(255,255,255,.9);font-size:.8rem}
+  .sfoot svg{flex:none}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="/static/Logo-LFH-black.svg" alt="La France Humaniste">
+  <div class="who">
+    {{ user.email }}<br>
+    {{ "équipe nationale" if user.role == "admin" else "département " + (user.department_code or "?") }}
+    · <a href="/logout">déconnexion</a>
+  </div>
+</header>
+
+<div class="card">
+  <h2>statistiques nationales</h2>
+  <div class="pills">
+    <div class="pill jaune">followers totaux<b id="s-followers">…</b></div>
+    <div class="pill pale">reach (hier)<b id="s-reach">…</b></div>
+    <div class="pill rose">comptes actifs<b id="s-active">…</b></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>nouveau post {{ "(national ou ciblé)" if user.role == "admin" else "" }}</h2>
+  <textarea id="media_url" rows="2"
+    placeholder="url(s) publique(s) https://… — un post avec plusieurs urls (une par ligne) devient automatiquement un carrousel"></textarea>
+  <textarea id="caption" rows="3" placeholder="légende du post (optionnelle)…"></textarea>
+  <select id="media_type">
+    <option value="IMAGE">post</option>
+    <option value="REELS">reel</option>
+    <option value="STORIES">story</option>
+  </select>
+  <select id="platform">
+    <option value="instagram">instagram</option>
+    <option value="facebook">facebook</option>
+    <option value="both">les deux</option>
+  </select>
+  <input id="targets" placeholder='cibles : "all" (tous les comptes) ou codes séparés par des virgules (ex. 75,13,69)'
+         value="{{ '' if user.role == 'admin' else (user.department_code or '') }}">
+  <input id="scheduled_at" type="datetime-local">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.3rem">
+    <button id="pubbtn" onclick="publish()">publier</button>
+    <button onclick="showPreview()">aperçu</button>
+  </div>
+  <p class="msg" id="result"></p>
+
+</div>
+
+<div class="modal" id="surepop" style="z-index:60">
+  <div class="mpanel" style="width:min(380px,96vw);text-align:center">
+    <h2 style="margin:0 0 .5rem">dernière vérification</h2>
+    <p style="font-weight:600;margin:.2rem 0 .3rem">êtes-vous sûr de bien vouloir publier ?</p>
+    <p id="surecount" style="font-weight:500;font-size:.85rem;color:var(--gris-texte);margin:0 0 1.1rem"></p>
+    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+      <button id="surebtn" onclick="doPublish()" disabled>oui, publier (5)</button>
+      <button class="ghostbtn" onclick="cancelConfirm()">annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="prevmodal" onclick="if(event.target===this) closePreview()">
+  <div class="mpanel">
+    <button type="button" class="mclose" onclick="closePreview()" aria-label="fermer">&#10005;</button>
+    <div class="prevhead" style="margin-top:0">
+      <h2 style="margin:0">aperçu</h2>
+      <div class="ptoggle" id="ptoggle">
+        <button type="button" class="pt active" id="pt-ig" onclick="setPrev('instagram')">instagram</button>
+        <button type="button" class="pt" id="pt-fb" onclick="setPrev('facebook')">facebook</button>
+      </div>
+    </div>
+    <div class="mockwrap"><div id="preview" style="width:min(380px,100%)"></div></div>
+    <div id="confirmrow" style="display:none;margin-top:1rem;gap:.6rem;flex-wrap:wrap">
+      <button onclick="askConfirm()">confirmer la publication</button>
+      <button class="ghostbtn" onclick="closePreview()">modifier</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>lier un compte (instagram et/ou facebook)</h2>
+  <p class="hint">cliquez sur un département dans la grille en bas pour pré-remplir le code,
+  puis collez les informations obtenues côté meta. remplissez la partie instagram,
+  la partie facebook, ou les deux. les tokens sont chiffrés avant stockage.</p>
+  <input id="link_code" placeholder="code département (ex. 75)">
+  <input id="link_username" placeholder="instagram : nom d'utilisateur (ex. lfh_paris)">
+  <input id="link_igid" placeholder="instagram : ig_user_id (id du compte professionnel)">
+  <input id="link_token" type="password" placeholder="instagram : access token longue durée (60 jours)">
+  <input id="link_fbid" placeholder="facebook : id de la page (optionnel)">
+  <input id="link_fbtoken" type="password" placeholder="facebook : token de page (optionnel)">
+  <button onclick="linkAccount()">lier ce compte</button>
+  <span class="msg" id="link_result"></span>
+</div>
+
+{% if user.role == "admin" %}
+<div class="card">
+  <h2>import en masse (excel ou csv)</h2>
+  <p class="hint">colonnes attendues : <code>departement</code>, <code>ig_username</code>,
+  <code>ig_user_id</code>, <code>access_token</code> — et en option
+  <code>fb_page_id</code>, <code>fb_page_token</code>. les lignes non remplies sont ignorées —
+  utilisez le modèle aux 101 lignes et complétez-le au fur et à mesure.</p>
+  <div class="filerow">
+    <label class="filebtn" for="import_file">choisir un fichier</label>
+    <span class="filename" id="import_filename">aucun fichier choisi</span>
+    <input id="import_file" type="file" accept=".csv,.xlsx" hidden
+           onchange="document.getElementById('import_filename').textContent = this.files[0] ? this.files[0].name : 'aucun fichier choisi'">
+  </div>
+  <button onclick="importFile()">importer</button>
+  <p class="msg" id="import_result"></p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>les comptes ({{ accounts|length }})</h2>
+  <div class="grid">
+    {% for a in accounts %}
+    <div class="acc {{ a.status }}" title="{{ a.status }} — cliquer pour lier"
+         onclick="prefill('{{ a.department_code }}')">
+      <b>{{ a.department_code }}</b> {{ a.department_name }}
+      <small>{{ a.ig_username or "non lié" }}</small>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--bleu)"></span>actif</span>
+    <span><span class="dot" style="background:#fff;border:1.5px dashed var(--gris)"></span>non lié</span>
+    <span><span class="dot" style="background:var(--rouge)"></span>token expiré / compromis</span>
+    <span><span class="dot" style="background:var(--noir)"></span>gelé</span>
+  </div>
+</div>
+
+<script>
+async function loadStats(){
+  const r = await fetch('/api/stats/overview');
+  if(!r.ok) return;
+  const d = await r.json();
+  document.getElementById('s-followers').textContent = d.total_followers.toLocaleString('fr-FR');
+  document.getElementById('s-reach').textContent = d.total_reach_yesterday.toLocaleString('fr-FR');
+  document.getElementById('s-active').textContent = d.accounts_reporting;
+}
+function setMsg(id, ok, text){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg' + (ok === true ? ' ok' : ok === false ? ' ko' : '');
+}
+function markInvalid(ids){
+  let bad = false;
+  for(const id of ids){
+    const el = document.getElementById(id);
+    const empty = !el.value.trim();
+    el.classList.toggle('invalid', empty);
+    if(empty && !bad){ el.scrollIntoView({behavior:'smooth', block:'center'}); }
+    bad = bad || empty;
+    el.oninput = () => el.classList.remove('invalid');
+  }
+  return bad;
+}
+function urlsOk(){
+  const urls = getUrls();
+  return urls.length > 0 && urls.every(u => {
+    try { const p = new URL(u); return p.protocol === 'http:' || p.protocol === 'https:'; }
+    catch { return false; }
+  });
+}
+function checkMedia(){
+  const el = document.getElementById('media_url');
+  el.oninput = () => el.classList.remove('invalid');
+  if(!el.value.trim()){
+    el.classList.add('invalid');
+    setMsg('result', false, 'tous les champs ne sont pas remplis');
+    return false;
+  }
+  if(!urlsOk()){
+    el.classList.add('invalid');
+    setMsg('result', false, 'url(s) de média non conforme(s) — collez des liens https complets, une url par ligne');
+    return false;
+  }
+  const t = document.getElementById('media_type').value;
+  const n = getUrls().length;
+  if(t === 'IMAGE' && n > 10){
+    el.classList.add('invalid');
+    setMsg('result', false, 'un carrousel est limité à 10 images');
+    return false;
+  }
+  if((t === 'REELS' || t === 'STORIES') && n > 1){
+    el.classList.add('invalid');
+    setMsg('result', false, `un ${t === 'REELS' ? 'reel' : 'story'} demande une seule url`);
+    return false;
+  }
+  return true;
+}
+function openPreview(confirm){
+  renderPreview();
+  document.getElementById('confirmrow').style.display = confirm ? 'flex' : 'none';
+  document.getElementById('prevmodal').classList.add('open');
+}
+function closePreview(){
+  document.getElementById('prevmodal').classList.remove('open');
+  document.querySelectorAll('#preview video').forEach(v => { v.pause(); v.muted = true; });
+}
+function showPreview(){
+  if(!checkMedia()) return;
+  setMsg('result', 'info', '');
+  openPreview(false);
+}
+async function publish(){
+  if(markInvalid(['media_url','targets'])){
+    setMsg('result', false, 'tous les champs ne sont pas remplis');
+    return;
+  }
+  if(!checkMedia()) return;
+  setMsg('result', 'info', '');
+  openPreview(true);
+}
+let sureTimer = null;
+const NB_TOUS_COMPTES = {{ accounts|length }};
+function askConfirm(){
+  const btn = document.getElementById('surebtn');
+  const t = document.getElementById('targets').value.trim();
+  const n = t === 'all' ? NB_TOUS_COMPTES
+                        : t.split(',').map(s => s.trim()).filter(Boolean).length;
+  const plat = document.getElementById('platform').value;
+  const platTxt = plat === 'both' ? 'instagram et facebook' : plat;
+  document.getElementById('surecount').textContent =
+    `vous êtes sur le point de publier sur ${n} compte${n > 1 ? 's' : ''} (${platTxt})`;
+  document.getElementById('surepop').classList.add('open');
+  let left = 5;
+  btn.disabled = true;
+  btn.classList.remove('danger');
+  btn.textContent = `oui, publier (${left})`;
+  clearInterval(sureTimer);
+  sureTimer = setInterval(() => {
+    left--;
+    if(left <= 0){
+      clearInterval(sureTimer);
+      btn.disabled = false;
+      btn.classList.add('danger');
+      btn.textContent = 'oui, publier';
+    } else {
+      btn.textContent = `oui, publier (${left})`;
+    }
+  }, 1000);
+}
+function cancelConfirm(){
+  clearInterval(sureTimer);
+  document.getElementById('surepop').classList.remove('open');
+}
+async function doPublish(){
+  cancelConfirm();
+  closePreview();
+  const t = document.getElementById('targets').value.trim();
+  const body = {
+    caption: document.getElementById('caption').value,
+    media_url: document.getElementById('media_url').value,
+    media_type: effType(document.getElementById('media_type').value, getUrls()),
+    platform: document.getElementById('platform').value,
+    targets: t === 'all' ? 'all' : t.split(',').map(s=>s.trim()),
+    scheduled_at: document.getElementById('scheduled_at').value || null
+  };
+  const r = await fetch('/api/posts', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  setMsg('result', r.ok, r.ok
+    ? `✔ post #${d.post_id} créé pour ${d.targets} compte(s) — ${d.mode}`
+    : `erreur : ${d.detail}`);
+}
+function prefill(code){
+  document.getElementById('link_code').value = code;
+  document.getElementById('link_code').scrollIntoView({behavior:'smooth', block:'center'});
+  document.getElementById('link_username').focus();
+}
+async function linkAccount(){
+  const hasIg = document.getElementById('link_igid').value.trim() &&
+                document.getElementById('link_token').value.trim();
+  const hasFb = document.getElementById('link_fbid').value.trim() &&
+                document.getElementById('link_fbtoken').value.trim();
+  if(markInvalid(['link_code']) || (!hasIg && !hasFb)){
+    if(!hasIg && !hasFb){
+      for(const id of ['link_igid','link_token','link_fbid','link_fbtoken'])
+        document.getElementById(id).classList.add('invalid');
+    }
+    setMsg('link_result', false, 'remplissez le code + les champs instagram et/ou facebook');
+    return;
+  }
+  const code = document.getElementById('link_code').value.trim();
+  const r = await fetch(`/api/accounts/${encodeURIComponent(code)}/token`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      ig_user_id: document.getElementById('link_igid').value.trim(),
+      ig_username: document.getElementById('link_username').value.trim(),
+      access_token: document.getElementById('link_token').value.trim(),
+      fb_page_id: document.getElementById('link_fbid').value.trim(),
+      fb_page_token: document.getElementById('link_fbtoken').value.trim()
+    })});
+  const d = await r.json();
+  for(const id of ['link_igid','link_token','link_fbid','link_fbtoken']){
+    const el = document.getElementById(id);
+    el.oninput = () => ['link_igid','link_token','link_fbid','link_fbtoken']
+      .forEach(i => document.getElementById(i).classList.remove('invalid'));
+  }
+  setMsg('link_result', r.ok, r.ok ? '✔ compte lié' : `erreur : ${d.detail}`);
+  if(r.ok) setTimeout(()=>location.reload(), 1000);
+}
+async function importFile(){
+  const f = document.getElementById('import_file').files[0];
+  if(!f){ setMsg('import_result', false, 'choisissez un fichier.'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  const r = await fetch('/api/accounts/import', {method:'POST', body: fd});
+  const d = await r.json();
+  setMsg('import_result', r.ok, r.ok
+    ? `✔ ${d.ok} compte(s) lié(s), ${d.ignores} ligne(s) non remplie(s) ignorée(s)` +
+      (d.erreurs.length ? ` — erreurs : ${d.erreurs.join(' | ')}` : '')
+    : `erreur : ${d.detail}`);
+  if(r.ok && d.ok > 0) setTimeout(()=>location.reload(), 2500);
+}
+loadStats();
+
+/* ---- apercu ---- */
+let prevPlatform = 'instagram';
+function setPrev(p){ prevPlatform = p; renderPreview(); }
+function esc(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function isVideo(u, type){ return type === 'REELS' || /\.(mp4|mov|webm|m4v)(\?|$)/i.test(u); }
+function toggleMute(btn, ev){
+  ev.stopPropagation();
+  const v = btn.parentElement.querySelector('video');
+  v.muted = !v.muted;
+  btn.innerHTML = v.muted ? SVGS.mute : SVGS.sound;
+}
+function mEl(u, type, ig, sound){
+  if(!isVideo(u, type))
+    return `<img src="${esc(u)}" alt="" onerror="this.style.opacity=.15">`;
+  if(ig)
+    return `<div class="vidwrap">
+      <video src="${esc(u)}" autoplay ${sound ? '' : 'muted'} loop playsinline
+             onclick="this.paused ? this.play() : this.pause()"></video>
+      <button type="button" class="mutebtn" onclick="toggleMute(this, event)">${SVGS.mute}</button>
+    </div>`;
+  return `<video src="${esc(u)}" controls muted playsinline></video>`;
+}
+function fbVideo(u){
+  return `<div class="vidwrap">
+    <video src="${esc(u)}" autoplay muted loop playsinline
+           onclick="this.paused ? this.play() : this.pause()"
+           ontimeupdate="const p = this.parentElement.querySelector('.fbprog i'); if(p && this.duration) p.style.width = (this.currentTime / this.duration * 100) + '%'"></video>
+    <button type="button" class="mutebtn" onclick="toggleMute(this, event)">${SVGS.mute}</button>
+    <div class="fbprog"><i></i></div>
+  </div>`;
+}
+function capToggle(cap, limit, moreLabel, lessLabel){
+  if(cap.length <= limit) return esc(cap);
+  const short = esc(cap.slice(0, limit).trimEnd());
+  return `<span class="capwrap"><span>${short}… <span class="capmore" onclick="toggleCap(this)">${moreLabel}</span></span><span style="display:none">${esc(cap)} <span class="capmore" onclick="toggleCap(this)">${lessLabel}</span></span></span>`;
+}
+function toggleCap(el){
+  const w = el.closest('.capwrap');
+  const showFull = w.children[0].style.display !== 'none';
+  w.children[0].style.display = showFull ? 'none' : '';
+  w.children[1].style.display = showFull ? '' : 'none';
+}
+function effType(t, urls){
+  return (t === 'IMAGE' && urls.length > 1) ? 'CAROUSEL' : t;
+}
+function getUrls(){
+  return document.getElementById('media_url').value.replace(/\|/g,'\n')
+    .split('\n').map(s=>s.trim()).filter(Boolean);
+}
+const S = (p, fill) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="${fill||'none'}" stroke="#262626" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const Sg = (p, c, w) => `<svg viewBox="0 0 24 24" width="${w||16}" height="${w||16}" fill="none" stroke="${c||'#65676b'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const SVGS = {
+  heart: S('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  comment: S('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'),
+  send: S('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'),
+  bookmark: S('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+  dots: '<svg viewBox="0 0 24 24" width="18" height="18" fill="#262626"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#65676b" stroke-width="2" style="vertical-align:-1px"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18M12 3a14.5 14.5 0 0 0 0 18"/></svg>',
+  thumb: Sg('<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>'),
+  thumbBlue: '<svg viewBox="0 0 24 24" width="11" height="11" fill="#fff"><path d="M2 21h4V9H2zM23 10a2 2 0 0 0-2-2h-6.3l1-4.6A1.5 1.5 0 0 0 14.2 2L8 9v12h11a2 2 0 0 0 2-1.7l2-8z"/></svg>',
+  commentFb: Sg('<path d="M21 12a8 8 0 0 1-8 8H4l2-3.2A8 8 0 1 1 21 12z"/>'),
+  share: Sg('<path d="M14 3l7 7-7 7v-4C8 13 5 15 3 19c0-7 4-11 11-12z"/>'),
+  mute: '<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3z"/><line x1="16" y1="9" x2="22" y2="15" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="9" x2="16" y2="15" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+  sound: '<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+  heartW: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  sendW: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+  dotsW: '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+  closeW: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  thumbW: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>',
+  commentW: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l2-3.2A8 8 0 1 1 21 12z"/></svg>',
+  heartF: '<svg viewBox="0 0 24 24" width="19" height="19" fill="#fff"><path d="M12 21.2 4.2 13.4l-1-1a5.5 5.5 0 1 1 7.8-7.8l1 1 1-1a5.5 5.5 0 1 1 7.8 7.8l-1 1z"/></svg>',
+  thumbF: '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M2 21h4V9H2zM23 10a2 2 0 0 0-2-2h-6.3l1-4.6A1.5 1.5 0 0 0 14.2 2L8 9v12h11a2 2 0 0 0 2-1.7l2-8z"/></svg>',
+  shareW: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3l7 7-7 7v-4C8 13 5 15 3 19c0-7 4-11 11-12z"/></svg>'
+};
+const IG_ICONS = `<div class="mactions"><span>${SVGS.heart}</span><span>${SVGS.comment}</span><span>${SVGS.send}</span><span>${SVGS.bookmark}</span></div>`;
+function igStory(urls, type){
+  const segs = urls.map((_, i) =>
+    `<div class="sseg"><div class="sfill" style="width:${i === 0 ? 65 : 0}%"></div></div>`).join('');
+  return `<div class="mock storymock">
+    <div class="story">
+      ${mEl(urls[0], type, true, true)}
+      <div class="sgrad top"></div>
+      <div class="sgrad bottom"></div>
+      <div class="sprog">${segs}</div>
+      <div class="shead">
+        <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
+        <span class="sname">lafrancehumaniste</span><span class="stime">1 h</span>
+        <span class="sdots">${SVGS.dotsW}</span>
+        <span class="sx">${SVGS.closeW}</span>
+      </div>
+      <div class="sfoot">
+        <div class="sreply">Envoyer un message</div>
+        ${SVGS.heartW}${SVGS.sendW}
+      </div>
+    </div>
+  </div>`;
+}
+function igPreview(urls, cap, type){
+  if(type === 'STORIES') return igStory(urls, type);
+  const tall = (type === 'REELS') ? 'tall' : 'sq';
+  let media;
+  if(type === 'CAROUSEL' && urls.length > 1){
+    media = `<div class="mmedia ${tall}">
+      <div class="igslider" id="igslider">` +
+      urls.map(u => `<div class="igslide">${mEl(u, type, true)}</div>`).join('') +
+      `</div>
+      <button class="snav left" onclick="igSlide(-1)">&#8249;</button>
+      <button class="snav right" onclick="igSlide(1)">&#8250;</button>
+      <div class="scount" id="scount">1/${urls.length}</div>
+    </div>
+    <div class="mdotsrow" id="igdots">` +
+      urls.map((_,i)=>`<div class="mdot${i===0?' on':''}"></div>`).join('') + `</div>`;
+  } else {
+    media = `<div class="mmedia ${tall}">${mEl(urls[0], type, true)}</div>`;
+  }
+  return `<div class="mock">
+    <div class="mhead">
+      <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
+      <div><div class="mname">lafrancehumaniste</div><div class="msub">France</div></div>
+      <div class="mdots">${SVGS.dots}</div>
+    </div>
+    ${media}
+    ${IG_ICONS}
+    <div class="mlikes">1 024 j'aime</div>
+    <div class="mcap"><b>lafrancehumaniste</b> ${cap ? capToggle(cap, 125, 'plus', 'moins') : '<span style="color:#999">votre légende…</span>'}</div>
+    <div class="mtime">il y a 1 minute</div>
+  </div>`;
+}
+function fbStory(urls, type){
+  const segs = urls.map((_, i) =>
+    `<div class="sseg"><div class="sfill" style="width:${i === 0 ? 65 : 0}%"></div></div>`).join('');
+  const media = isVideo(urls[0], type)
+    ? `<div class="vidwrap">
+        <video src="${esc(urls[0])}" autoplay loop playsinline
+               onclick="this.paused ? this.play() : this.pause()"></video>
+        <button type="button" class="mutebtn" onclick="toggleMute(this, event)">${SVGS.sound}</button>
+      </div>`
+    : `<img src="${esc(urls[0])}" alt="">`;
+  return `<div class="mock storymock">
+    <div class="fbstory">
+      <div class="sprog">${segs}</div>
+      <div class="shead">
+        <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
+        <span class="sname">La France Humaniste<span class="stime">1 h</span></span>
+        <span class="sdots">${SVGS.dotsW}</span>
+        <span class="sx">${SVGS.closeW}</span>
+      </div>
+      <div class="smediabox">${media}</div>
+      <div class="sbottom">
+        <span class="scircle">${SVGS.shareW}</span>
+        <div class="sreply2">Envoyer un message…</div>
+        <span class="rxn red">${SVGS.heartF}</span>
+        <span class="rxn blue">${SVGS.thumbF}</span>
+      </div>
+    </div>
+  </div>`;
+}
+function fbReel(u, cap){
+  const media = isVideo(u, 'REELS')
+    ? `<div class="vidwrap">
+        <video src="${esc(u)}" autoplay muted loop playsinline
+               onclick="this.paused ? this.play() : this.pause()"
+               ontimeupdate="const p = this.closest('.reel').querySelector('.fbprog i'); if(p && this.duration) p.style.width = (this.currentTime / this.duration * 100) + '%'"></video>
+        <button type="button" class="mutebtn" onclick="toggleMute(this, event)">${SVGS.mute}</button>
+      </div>`
+    : `<img src="${esc(u)}" alt="">`;
+  return `<div class="mock storymock">
+    <div class="reel">
+      ${media}
+      <div class="sgrad bottom"></div>
+      <div class="rrail">
+        <div>${SVGS.thumbW}<span>1,2 K</span></div>
+        <div>${SVGS.commentW}<span>86</span></div>
+        <div>${SVGS.sendW}<span>34</span></div>
+        <div>${SVGS.dotsW}</div>
+      </div>
+      <div class="rinfo">
+        <div class="rname"><div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
+          La France Humaniste <span class="rfollow">Suivre</span></div>
+        <div class="rcap" onclick="this.classList.toggle('open')">${esc(cap)}</div>
+      </div>
+      <div class="fbprog" style="z-index:3"><i></i></div>
+    </div>
+  </div>`;
+}
+function fbPreview(urls, cap, type){
+  if(type === 'STORIES') return fbStory(urls, type);
+  if(type === 'REELS') return fbReel(urls[0], cap);
+  let media;
+  if(type === 'CAROUSEL' && urls.length > 1){
+    const shown = urls.slice(0, 4);
+    media = `<div class="fbgrid">` + shown.map((u, i) =>
+      `<div class="cell">${mEl(u, type)}${(i === 3 && urls.length > 4)
+        ? `<div class="fbmore">+${urls.length - 4}</div>` : ''}</div>`).join('') + `</div>`;
+  } else {
+    media = `<div class="mmedia">${isVideo(urls[0], type) ? fbVideo(urls[0]) : mEl(urls[0], type)}</div>`;
+  }
+  return `<div class="mock">
+    <div class="mhead">
+      <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
+      <div><div class="mname">La France Humaniste</div><div class="msub">à l'instant · ${SVGS.globe}</div></div>
+      <div class="mdots">${SVGS.dots}</div>
+    </div>
+    <div class="fbtext">${cap ? capToggle(cap, 140, 'Voir plus', 'Voir moins') : '<span style="color:#999">votre légende…</span>'}</div>
+    ${media}
+    <div class="fbstats"><span><span class="likebadge">${SVGS.thumbBlue}</span>256</span><span>43 commentaires · 18 partages</span></div>
+    <div class="fbbtns"><span>${SVGS.thumb} J'aime</span><span>${SVGS.commentFb} Commenter</span><span>${SVGS.share} Partager</span></div>
+  </div>`;
+}
+function igSlide(dir){
+  const s = document.getElementById('igslider');
+  if(s) s.scrollBy({left: dir * s.clientWidth, behavior: 'smooth'});
+}
+function attachSlider(){
+  const s = document.getElementById('igslider');
+  if(!s) return;
+  s.addEventListener('scroll', () => {
+    const i = Math.round(s.scrollLeft / s.clientWidth);
+    const dots = document.querySelectorAll('#igdots .mdot');
+    dots.forEach((d, j) => d.classList.toggle('on', j === i));
+    const c = document.getElementById('scount');
+    if(c) c.textContent = `${i + 1}/${dots.length}`;
+  }, {passive: true});
+}
+function renderPreview(){
+  const plat = document.getElementById('platform').value;
+  document.getElementById('ptoggle').style.display = plat === 'both' ? 'flex' : 'none';
+  const show = plat === 'both' ? prevPlatform : plat;
+  document.getElementById('pt-ig').classList.toggle('active', show === 'instagram');
+  document.getElementById('pt-fb').classList.toggle('active', show === 'facebook');
+  const urls = getUrls();
+  const cap = document.getElementById('caption').value;
+  const type = effType(document.getElementById('media_type').value, urls);
+  const box = document.getElementById('preview');
+  if(!urls.length){ box.innerHTML = ''; return; }
+  box.innerHTML = show === 'facebook' ? fbPreview(urls, cap, type) : igPreview(urls, cap, type);
+  attachSlider();
+  const sv = box.querySelector('.story video, .fbstory video');
+  if(sv){
+    sv.muted = false;
+    sv.play().catch(() => { sv.muted = true; sv.play().catch(() => {}); });
+  }
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ cancelConfirm(); closePreview(); } });
+function onPostInput(){
+  if(document.getElementById('prevmodal').classList.contains('open')) renderPreview();
+}
+for(const id of ['caption','media_url','media_type','platform','targets','scheduled_at']){
+  const el = document.getElementById(id);
+  el.addEventListener('input', onPostInput);
+  el.addEventListener('change', onPostInput);
+}
+</script>
+</body>
+</html>

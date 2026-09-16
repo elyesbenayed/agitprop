@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>la france humaniste — connexion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;0,600;0,800;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --beige:#fdf4df; --noir:#000000; --rouge:#e83f13; --bleu:#2828ea;
+    --bleu-pale:#9fc6d1; --jaune:#fcd227; --vert:#1c7768; --rose:#f7b7c4;
+    --gris:#b5b5b5; --gris-texte:#6b6b6b; --gris-fond:#f2f2f2;
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Poppins',system-ui,sans-serif;background:#fff;color:var(--noir);
+       letter-spacing:-.025em;margin:0;min-height:100vh;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2rem}
+  .logo{width:min(320px,70vw)}
+  form{background:#fff;border:1.5px solid var(--noir);border-radius:18px;padding:2.2rem;width:min(380px,90vw)}
+  h1{font-weight:800;font-size:1.35rem;text-transform:lowercase;margin:0 0 1.2rem;line-height:1.1}
+  input{width:100%;padding:.8rem 1rem;margin:.35rem 0;border:1.5px solid var(--noir);
+        border-radius:12px;font:inherit;font-weight:500;background:#fff}
+  input:focus{outline:2px solid var(--bleu);border-color:var(--bleu)}
+  button{width:100%;margin-top:1rem;padding:.85rem;border:0;border-radius:999px;
+         background:var(--bleu);color:#fff;font:inherit;font-weight:800;
+         text-transform:lowercase;cursor:pointer;transition:background .15s}
+  button:hover{background:var(--noir)}
+  .err{color:var(--rouge);font-weight:600;font-size:.85rem;margin-top:.6rem;display:none}
+</style>
+</head>
+<body>
+<img class="logo" src="/static/Logo-LFH-black.svg" alt="La France Humaniste">
+<form method="post" action="/login" onsubmit="return go(event)">
+  <h1>les comptes des départements</h1>
+  <input name="email" type="email" placeholder="email" required autocomplete="username">
+  <input name="password" type="password" placeholder="mot de passe" required autocomplete="current-password">
+  <button type="submit">se connecter</button>
+  <p class="err" id="err">identifiants invalides</p>
+</form>
+<script>
+async function go(e){
+  e.preventDefault();
+  const f = e.target;
+  const r = await fetch('/login', {method:'POST',
+    body: new URLSearchParams(new FormData(f)), redirect:'follow'});
+  if(r.ok && r.redirected){ location.href = r.url; }
+  else if(r.ok){ location.href = '/'; }
+  else { document.getElementById('err').style.display = 'block'; }
+  return false;
+}
+</script>
+</body>
+</html>
