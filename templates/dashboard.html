@@ -356,7 +356,7 @@ async function loadStats(){
   const d = await r.json();
   document.getElementById('s-followers').textContent = d.total_followers.toLocaleString('fr-FR');
   document.getElementById('s-reach').textContent = d.total_reach_yesterday.toLocaleString('fr-FR');
-  document.getElementById('s-active').textContent = d.accounts_reporting;
+  document.getElementById('s-active').textContent = d.active_accounts;
 }
 function setMsg(id, ok, text){
   const el = document.getElementById(id);

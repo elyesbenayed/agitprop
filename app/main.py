@@ -313,7 +313,9 @@ def stats_overview(user: User = Depends(current_user), db=Depends(get_db)):
     total_followers = sum(r.followers for r in rows)
     total_reach = sum(r.reach for r in rows)
     top = sorted(rows, key=lambda r: r.followers, reverse=True)[:10]
+    active = db.query(Account).filter(Account.status == "active").count()
     return {"accounts_reporting": len(rows),
+            "active_accounts": active,
             "total_followers": total_followers,
             "total_reach_yesterday": total_reach,
             "top_departments": [{"dept": r.account.department_code,
