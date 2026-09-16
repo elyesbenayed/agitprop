@@ -1,4 +1,4 @@
-# IG Manager — Gestion des 101 comptes Instagram départementaux
+# Agitprop — Gestion des 101 comptes Instagram départementaux
 
 Application FastAPI pour publier (posts partagés nationaux ou départementaux),
 collecter les statistiques et superviser la sécurité des 101 comptes via l'API

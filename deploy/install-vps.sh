@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Installation / mise a jour d'IG Manager sur un VPS Ubuntu 24.04 (Infomaniak VPS Lite ou VPS Cloud).
+# Installation / mise a jour d'Agitprop sur un VPS Ubuntu 24.04 (Infomaniak VPS Lite ou VPS Cloud).
 #
 #   Usage : sudo bash deploy/install-vps.sh <domaine> <email>
-#   Ex.   : sudo bash deploy/install-vps.sh igmanager.lafrancehumaniste.fr contact@lafrancehumaniste.fr
+#   Ex.   : sudo bash deploy/install-vps.sh agitprop.lafrancehumaniste.fr contact@lafrancehumaniste.fr
 #
 # A lancer depuis le dossier des sources envoye sur le serveur (celui qui contient app/, templates/, static/).
-# Relancable sans risque : les donnees (/opt/igmanager/.env et /opt/igmanager/data) sont conservees.
+# Relancable sans risque : les donnees (/opt/agitprop/.env et /opt/agitprop/data) sont conservees.
 set -euo pipefail
 
 DOMAIN="${1:-}"
@@ -14,13 +14,13 @@ if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
   echo "Usage : sudo bash deploy/install-vps.sh <domaine> <email>"; exit 1
 fi
 if [ ! -f app/main.py ]; then
-  echo "Lancez ce script depuis le dossier qui contient app/ (cd /root/igmanager-src)"; exit 1
+  echo "Lancez ce script depuis le dossier qui contient app/ (cd /root/agitprop-src)"; exit 1
 fi
 if [ "$(id -u)" != 0 ]; then
   echo "A lancer avec sudo"; exit 1
 fi
 
-APP=/opt/igmanager
+APP=/opt/agitprop
 export DEBIAN_FRONTEND=noninteractive
 
 echo "[1/6] Paquets systeme"
@@ -28,7 +28,7 @@ apt-get update -q
 apt-get install -y -q python3 python3-venv python3-pip nginx certbot python3-certbot-nginx rsync ufw openssl
 
 echo "[2/6] Sources -> $APP"
-id -u igmanager >/dev/null 2>&1 || useradd --system --home "$APP" --shell /usr/sbin/nologin igmanager
+id -u agitprop >/dev/null 2>&1 || useradd --system --home "$APP" --shell /usr/sbin/nologin agitprop
 mkdir -p "$APP/data"
 rsync -a --delete \
   --exclude venv --exclude __pycache__ --exclude '*.db' --exclude '*.db-journal' \
@@ -52,12 +52,12 @@ META_GRAPH_VERSION=v23.0
 FERNET_KEY=$FERNET
 SESSION_SECRET=$SESSION
 HTTPS_ONLY=1
-DATABASE_URL=sqlite:///$APP/data/igmanager.db
+DATABASE_URL=sqlite:///$APP/data/agitprop.db
 ADMIN_EMAIL=$EMAIL
 ADMIN_PASSWORD=$ADMIN_PW
 EOF
   cat > "$APP/IDENTIFIANTS.txt" <<EOF
-IG Manager - identifiants administrateur
+Agitprop - identifiants administrateur
 =========================================
 
 URL          : https://$DOMAIN
@@ -68,17 +68,17 @@ A ranger dans le gestionnaire de mots de passe, puis supprimer ce fichier.
 EOF
   chmod 600 "$APP/.env" "$APP/IDENTIFIANTS.txt"
 fi
-chown -R igmanager:igmanager "$APP"
+chown -R agitprop:agitprop "$APP"
 
 echo "[5/6] Service systemd"
-cat > /etc/systemd/system/igmanager.service <<EOF
+cat > /etc/systemd/system/agitprop.service <<EOF
 [Unit]
-Description=IG Manager (La France Humaniste)
+Description=Agitprop (La France Humaniste)
 After=network.target
 
 [Service]
-User=igmanager
-Group=igmanager
+User=agitprop
+Group=agitprop
 WorkingDirectory=$APP
 ExecStart=$APP/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
 Restart=always
@@ -88,11 +88,11 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable igmanager >/dev/null 2>&1
-systemctl restart igmanager
+systemctl enable agitprop >/dev/null 2>&1
+systemctl restart agitprop
 
 echo "[6/6] nginx + HTTPS (Let's Encrypt) + pare-feu"
-cat > /etc/nginx/sites-available/igmanager <<EOF
+cat > /etc/nginx/sites-available/agitprop <<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -108,7 +108,7 @@ server {
     }
 }
 EOF
-ln -sf /etc/nginx/sites-available/igmanager /etc/nginx/sites-enabled/igmanager
+ln -sf /etc/nginx/sites-available/agitprop /etc/nginx/sites-enabled/agitprop
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl reload nginx
@@ -119,11 +119,11 @@ ufw allow 'Nginx Full' >/dev/null
 ufw --force enable >/dev/null
 
 sleep 2
-systemctl --no-pager --lines=5 status igmanager || true
+systemctl --no-pager --lines=5 status agitprop || true
 echo
 echo "=============================================="
 echo " TERMINE : https://$DOMAIN"
 echo " Identifiants admin : $APP/IDENTIFIANTS.txt (lire, ranger, supprimer)"
 echo " Ensuite : META_APP_ID / META_APP_SECRET dans $APP/.env puis"
-echo "           systemctl restart igmanager"
+echo "           systemctl restart agitprop"
 echo "=============================================="
