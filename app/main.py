@@ -16,6 +16,7 @@ from .config import settings
 from .database import (Account, AuditLog, InsightSnapshot, Post, PostTarget,
                        SessionLocal, User, get_db, init_db)
 from .departments import DEPARTMENTS
+from . import instagram_api as ig
 from .scheduler import start_scheduler
 from .security import (audit, can_access_account, encrypt_token,
                        hash_password, verify_password)
@@ -132,11 +133,23 @@ def _link_account(db, user, code: str, ig_user_id: str, ig_username: str,
         return f"Departement inconnu : {code}"
     if not can_access_account(user, acc):
         return f"Acces refuse au departement {code}"
+    # Un token Instagram suffit : l'identifiant et le nom sont demandes a Meta.
+    if access_token and (not ig_user_id or not ig_username):
+        try:
+            me = ig.whoami_sync(access_token)
+        except ig.InstagramAPIError as e:
+            return f"{code} : token Instagram refuse par Meta ({e})"
+        except Exception as e:  # reseau, JSON...
+            return f"{code} : impossible de joindre Meta ({e})"
+        ig_user_id = ig_user_id or me["user_id"]
+        ig_username = ig_username or me["username"]
+        if not ig_user_id:
+            return f"{code} : Meta n'a pas renvoye d'identifiant pour ce token"
     has_ig = bool(ig_user_id and access_token)
     has_fb = bool(fb_page_id and fb_page_token)
     if not (has_ig or has_fb):
-        return (f"{code} : fournir ig_user_id + access_token (Instagram) "
-                "et/ou fb_page_id + fb_page_token (Facebook)")
+        return (f"{code} : fournir le token Instagram, "
+                "ou fb_page_id + fb_page_token (Facebook)")
     if has_ig:
         acc.ig_user_id = ig_user_id
         acc.ig_username = ig_username
@@ -159,9 +172,10 @@ def set_token(code: str, body: TokenIn, user: User = Depends(current_user),
     err = _link_account(db, user, code, body.ig_user_id, body.ig_username,
                         body.access_token, body.fb_page_id, body.fb_page_token)
     if err:
-        raise HTTPException(400 if "fournir" in err else
-                            (404 if "inconnu" in err else 403), err)
-    return {"ok": True}
+        raise HTTPException(404 if "inconnu" in err else
+                            (403 if "refuse au" in err else 400), err)
+    acc = db.query(Account).filter(Account.department_code == code).first()
+    return {"ok": True, "username": acc.ig_username, "ig_user_id": acc.ig_user_id}
 
 
 @app.post("/api/accounts/import")

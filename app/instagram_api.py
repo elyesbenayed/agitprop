@@ -125,6 +125,21 @@ async def publish_media(ig_user_id: str, access_token: str, media_url: str,
         return result["id"]
 
 
+def whoami_sync(access_token: str) -> dict:
+    """Identifiant + nom du compte Instagram professionnel associe a ce token.
+
+    Connexion Instagram business : GET /me?fields=user_id,username.
+    Appel synchrone (utilise depuis les routes non-async de liaison de compte)."""
+    with httpx.Client(timeout=20) as client:
+        r = client.get(f"{_base(access_token)}/me",
+                       params={"fields": "user_id,username,id",
+                               "access_token": access_token})
+        data = r.json()
+        _raise_for_error(data)
+        return {"user_id": str(data.get("user_id") or data.get("id") or ""),
+                "username": data.get("username") or ""}
+
+
 async def get_publishing_quota(ig_user_id: str, access_token: str) -> int:
     """Nombre de publications déjà utilisées sur les dernières 24 h (quota 25)."""
     async with httpx.AsyncClient(timeout=30) as client:

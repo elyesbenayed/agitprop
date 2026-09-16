@@ -69,6 +69,9 @@
       color:var(--noir);font-weight:800;text-transform:lowercase;cursor:pointer}
   .pt.active{background:var(--noir);color:#fff}
   .pt:hover{background:var(--bleu);border-color:var(--bleu);color:#fff}
+  .pt:disabled,.pt:disabled:hover{background:#fff;color:var(--gris-texte);border-color:var(--gris);
+      cursor:not-allowed;opacity:.7}
+  .linktoggle{display:flex;gap:.5rem;margin:.4rem 0 .2rem}
   .mockwrap{display:flex;justify-content:center;margin-top:.8rem}
   .mock{width:min(380px,100%);background:#fff;border:1px solid #dbdbdb;border-radius:10px;
         overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -289,16 +292,22 @@
 </div>
 
 <div class="card">
-  <h2>lier un compte (instagram et/ou facebook)</h2>
+  <h2>lier un compte</h2>
   <p class="hint">cliquez sur un département dans la grille en bas pour pré-remplir le code,
-  puis collez les informations obtenues côté meta. remplissez la partie instagram,
-  la partie facebook, ou les deux. les tokens sont chiffrés avant stockage.</p>
+  puis collez le token obtenu côté meta. l'identifiant et le nom du compte sont récupérés
+  automatiquement. les tokens sont chiffrés avant stockage.</p>
   <input id="link_code" placeholder="code département (ex. 75)">
-  <input id="link_username" placeholder="instagram : nom d'utilisateur (ex. lfh_paris)">
-  <input id="link_igid" placeholder="instagram : ig_user_id (id du compte professionnel)">
-  <input id="link_token" type="password" placeholder="instagram : access token longue durée (60 jours)">
-  <input id="link_fbid" placeholder="facebook : id de la page (optionnel)">
-  <input id="link_fbtoken" type="password" placeholder="facebook : token de page (optionnel)">
+  <div class="linktoggle">
+    <button type="button" class="pt active" id="lt-ig" onclick="setLinkMode('instagram')">instagram</button>
+    <button type="button" class="pt" id="lt-fb" disabled title="bientôt disponible">facebook · indisponible</button>
+  </div>
+  <div id="link_ig">
+    <input id="link_token" type="password" placeholder="token instagram longue durée (60 jours)">
+  </div>
+  <div id="link_fb" style="display:none">
+    <input id="link_fbid" placeholder="facebook : id de la page">
+    <input id="link_fbtoken" type="password" placeholder="facebook : token de page">
+  </div>
   <button onclick="linkAccount()">lier ce compte</button>
   <span class="msg" id="link_result"></span>
 </div>
@@ -306,9 +315,9 @@
 {% if user.role == "admin" %}
 <div class="card">
   <h2>import en masse (excel ou csv)</h2>
-  <p class="hint">colonnes attendues : <code>departement</code>, <code>ig_username</code>,
-  <code>ig_user_id</code>, <code>access_token</code> — et en option
-  <code>fb_page_id</code>, <code>fb_page_token</code>. les lignes non remplies sont ignorées —
+  <p class="hint">colonnes attendues : <code>departement</code> et <code>access_token</code>
+  (token instagram). <code>ig_username</code> et <code>ig_user_id</code> sont facultatifs,
+  récupérés automatiquement. les lignes non remplies sont ignorées —
   utilisez le modèle aux 101 lignes et complétez-le au fur et à mesure.</p>
   <div class="filerow">
     <label class="filebtn" for="import_file">choisir un fichier</label>
@@ -478,38 +487,52 @@ async function doPublish(){
 function prefill(code){
   document.getElementById('link_code').value = code;
   document.getElementById('link_code').scrollIntoView({behavior:'smooth', block:'center'});
-  document.getElementById('link_username').focus();
+  document.getElementById('link_token').focus();
 }
+let linkMode = 'instagram';
+function setLinkMode(m){
+  linkMode = m;
+  document.getElementById('lt-ig').classList.toggle('active', m === 'instagram');
+  document.getElementById('lt-fb').classList.toggle('active', m === 'facebook');
+  document.getElementById('link_ig').style.display = m === 'instagram' ? '' : 'none';
+  document.getElementById('link_fb').style.display = m === 'facebook' ? '' : 'none';
+}
+const LINK_FIELDS = ['link_token','link_fbid','link_fbtoken'];
 async function linkAccount(){
-  const hasIg = document.getElementById('link_igid').value.trim() &&
-                document.getElementById('link_token').value.trim();
-  const hasFb = document.getElementById('link_fbid').value.trim() &&
-                document.getElementById('link_fbtoken').value.trim();
-  if(markInvalid(['link_code']) || (!hasIg && !hasFb)){
+  const token = document.getElementById('link_token').value.trim();
+  const fbid = document.getElementById('link_fbid').value.trim();
+  const fbtok = document.getElementById('link_fbtoken').value.trim();
+  const hasIg = linkMode === 'instagram' && !!token;
+  const hasFb = linkMode === 'facebook' && !!(fbid && fbtok);
+  const missing = markInvalid(['link_code']);
+  if(missing || (!hasIg && !hasFb)){
     if(!hasIg && !hasFb){
-      for(const id of ['link_igid','link_token','link_fbid','link_fbtoken'])
+      for(const id of (linkMode === 'instagram' ? ['link_token'] : ['link_fbid','link_fbtoken']))
         document.getElementById(id).classList.add('invalid');
     }
-    setMsg('link_result', false, 'remplissez le code + les champs instagram et/ou facebook');
+    setMsg('link_result', false, linkMode === 'instagram'
+      ? 'remplissez le code du département et le token instagram'
+      : 'remplissez le code du département et les champs facebook');
     return;
   }
   const code = document.getElementById('link_code').value.trim();
+  setMsg('link_result', null, 'vérification du token auprès de meta…');
   const r = await fetch(`/api/accounts/${encodeURIComponent(code)}/token`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      ig_user_id: document.getElementById('link_igid').value.trim(),
-      ig_username: document.getElementById('link_username').value.trim(),
-      access_token: document.getElementById('link_token').value.trim(),
-      fb_page_id: document.getElementById('link_fbid').value.trim(),
-      fb_page_token: document.getElementById('link_fbtoken').value.trim()
+      ig_user_id: '', ig_username: '',
+      access_token: hasIg ? token : '',
+      fb_page_id: hasFb ? fbid : '',
+      fb_page_token: hasFb ? fbtok : ''
     })});
   const d = await r.json();
-  for(const id of ['link_igid','link_token','link_fbid','link_fbtoken']){
-    const el = document.getElementById(id);
-    el.oninput = () => ['link_igid','link_token','link_fbid','link_fbtoken']
-      .forEach(i => document.getElementById(i).classList.remove('invalid'));
+  for(const id of LINK_FIELDS){
+    document.getElementById(id).oninput = () =>
+      LINK_FIELDS.forEach(i => document.getElementById(i).classList.remove('invalid'));
   }
-  setMsg('link_result', r.ok, r.ok ? '✔ compte lié' : `erreur : ${d.detail}`);
+  setMsg('link_result', r.ok, r.ok
+    ? `✔ compte @${d.username || '?'} lié au département ${code}`
+    : `erreur : ${d.detail}`);
   if(r.ok) setTimeout(()=>location.reload(), 1000);
 }
 async function importFile(){
