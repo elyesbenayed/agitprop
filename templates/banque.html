@@ -96,7 +96,7 @@ la légende peut contenir <code>{departement}</code>, <code>{code}</code>, <code
         <select id="dec_align" style="flex:1;min-width:100px" onchange="decApercu()"><option value="centre">centré</option><option value="gauche">à gauche</option><option value="droite">à droite</option></select>
         <select id="dec_taille" style="flex:1;min-width:100px" onchange="decApercu()"><option value="0.5">très petit (taille « objectif 2027 »)</option><option value="0.7">petit</option><option value="1" selected>normal</option><option value="1.4">grand</option></select>
       </div>
-      <div class="row"><label class="chk"><input type="checkbox" id="dec_min" checked onchange="decApercu()"> tout en minuscules (charte)</label>
+      <div class="row"><label class="chk"><input type="checkbox" id="dec_min" onchange="decApercu()"> tout en minuscules</label>
         <select id="dec_code" style="width:auto;margin:0" onchange="decApercu()"><option value="75">aperçu : 75 paris</option><option value="2A">2A corse-du-sud</option><option value="971">971 guadeloupe</option><option value="04">04 alpes-de-haute-provence</option></select></div>
       <div id="dec_preview" style="margin:.6rem 0"></div>
       <textarea id="dec_caption" rows="3" placeholder="légende du post (variables acceptées)"></textarea>

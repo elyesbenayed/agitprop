@@ -47,6 +47,24 @@ def _font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
         return ImageFont.load_default(size=size)
 
 
+TRACKING = -0.025   # interlettrage de la charte (-25 pour mille)
+
+
+def _mesure(font: ImageFont.FreeTypeFont, texte: str) -> tuple[int, int, int]:
+    """Largeur totale avec interlettrage, hauteur, décalage haut (bbox)."""
+    tr = TRACKING * font.size
+    largeur = sum(font.getlength(ch) for ch in texte) + tr * max(0, len(texte) - 1)
+    bbox = font.getbbox(texte)
+    return int(largeur), bbox[3] - bbox[1], bbox[1]
+
+
+def _dessiner(draw: ImageDraw.ImageDraw, x: float, y: float, texte: str, font: ImageFont.FreeTypeFont, fill) -> None:
+    tr = TRACKING * font.size
+    for ch in texte:
+        draw.text((x, y), ch, font=font, fill=fill)
+        x += font.getlength(ch) + tr
+
+
 def _slug(s: str) -> str:
     import unicodedata
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
@@ -78,8 +96,7 @@ def incruster(base: Image.Image, texte: str, position: str = "bas", style: str =
     draw = ImageDraw.Draw(img)
     # réduction automatique si le texte dépasse la largeur utile
     while True:
-        bbox = draw.textbbox((0, 0), texte, font=font)
-        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        tw, th, top = _mesure(font, texte)
         if tw <= w - 2 * marge or font.size <= 18:
             break
         font = _font(font.size - 2)
@@ -94,12 +111,12 @@ def incruster(base: Image.Image, texte: str, position: str = "bas", style: str =
         y0 = h - band_h - marge_v
     marge_h = int(w * 0.09)   # marge des maquettes (alignée sur les textes en bord)
     if align == "gauche":
-        tx = marge_h - bbox[0]
+        tx = marge_h
     elif align == "droite":
-        tx = w - marge_h - tw - bbox[0]
+        tx = w - marge_h - tw
     else:
-        tx = (w - tw) // 2 - bbox[0]
-    ty = y0 + pad_v - bbox[1]
+        tx = (w - tw) // 2
+    ty = y0 + pad_v - top
     if st["fond"]:
         draw.rectangle([0, y0, w, y0 + band_h], fill=COULEURS[st["fond"]])
     else:
@@ -107,8 +124,8 @@ def incruster(base: Image.Image, texte: str, position: str = "bas", style: str =
         if st["texte"] in ("blanc", "bleu"):
             ombre = (0, 0, 0)
             for dx, dy in ((2, 2), (-2, 2), (2, -2), (-2, -2), (0, 3)):
-                draw.text((tx + dx, ty + dy), texte, font=font, fill=ombre)
-    draw.text((tx, ty), texte, font=font, fill=COULEURS[st["texte"]])
+                _dessiner(draw, tx + dx, ty + dy, texte, font, ombre)
+    _dessiner(draw, tx, ty, texte, font, COULEURS[st["texte"]])
     return img
 
 
