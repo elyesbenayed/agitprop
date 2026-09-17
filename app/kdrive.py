@@ -68,7 +68,7 @@ def list_files(folder_id: str | None = None) -> list[dict]:
     folder_id = folder_id or settings.kdrive_folder_id or "1"
     with httpx.Client(timeout=30) as c:
         r = c.get(f"{API}/3/drive/{settings.kdrive_drive_id}/files/{folder_id}/files",
-                  params={"per_page": 200, "order_by": "last_modified_at", "order": "desc"},
+                  params={"limit": 200},
                   headers=_headers())
         data = _check(r)
     items = data.get("data", data) if isinstance(data, dict) else data
@@ -103,6 +103,15 @@ def thumbnail(file_id: str) -> tuple[bytes, str]:
         if r.status_code >= 400:
             _check(r)
         return r.content, r.headers.get("content-type", "image/jpeg")
+
+
+def delete_file(file_id: str) -> None:
+    """Supprime (corbeille) un fichier kDrive — réservé aux fichiers déposés par l'app."""
+    ecriture_autorisee()
+    with httpx.Client(timeout=30) as c:
+        r = c.delete(f"{API}/2/drive/{settings.kdrive_drive_id}/files/{file_id}", headers=_headers())
+        if r.status_code >= 400:
+            _check(r)
 
 
 def _safe_name(name: str) -> str:
@@ -183,11 +192,22 @@ def create_public_share(file_id: str) -> dict:
 
 
 def candidate_public_urls(share: dict, file_id: str) -> list[str]:
-    """Adresses possibles de téléchargement direct d'un fichier partagé publiquement."""
-    url = share.get("url") or share.get("share_url") or share.get("ShareURL") or ""
-    uuid = share.get("uuid") or share.get("token") or (url.rstrip("/").split("/")[-1] if url else "")
+    """Adresses possibles de téléchargement direct d'un fichier partagé publiquement.
+
+    Priorité au partage public du dossier (KDRIVE_SHARE_UUID) : un fichier déposé dans le dossier
+    partagé est joignable sans créer de lien individuel. Observé sur l'app kDrive (sept. 2026) :
+    /3/app/<drive>/share/<uuid>/files/<id>/files pour lister, /2/app/… pour les fichiers.
+    """
+    url = (share or {}).get("url") or (share or {}).get("share_url") or (share or {}).get("ShareURL") or ""
+    uuid = (share or {}).get("uuid") or (share or {}).get("token") or (url.rstrip("/").split("/")[-1] if url else "")
     d = settings.kdrive_drive_id
     out = []
+    su = settings.kdrive_share_uuid
+    if su:
+        out += [f"https://kdrive.infomaniak.com/2/app/{d}/share/{su}/files/{file_id}/download",
+                f"https://kdrive.infomaniak.com/3/app/{d}/share/{su}/files/{file_id}/download",
+                f"https://kdrive.infomaniak.com/2/app/{d}/share/{su}/files/{file_id}/preview",
+                f"https://kdrive.infomaniak.com/app/share/{d}/{su}/files/{file_id}/download"]
     if uuid:
         out += [f"https://kdrive.infomaniak.com/2/drive/{d}/share/{uuid}/files/{file_id}/download",
                 f"https://kdrive.infomaniak.com/2/drive/{d}/share/{uuid}/download",

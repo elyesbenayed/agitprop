@@ -354,9 +354,20 @@ class KImportIn(BaseModel):
 
 @router.post("/api/kdrive/importer/{file_id}")
 def kdrive_importer(file_id: str, body: KImportIn, user: User = Depends(require_admin), db=Depends(get_db)):
-    """Copie un fichier kDrive dans la banque (lecture sur kDrive, écriture locale uniquement)."""
+    """Ajoute un fichier kDrive à la banque.
+
+    Si le fichier est dans le dossier partagé publiquement (KDRIVE_SHARE_UUID), son adresse publique
+    directe est utilisée telle quelle : Meta la lira, sans copie locale. Sinon, copie sous static/media."""
+    info, public = None, None
+    if kdrive.settings.kdrive_share_uuid:
+        public, _ = kdrive.public_url_for({}, str(file_id))
     try:
-        info = kdrive.import_file(file_id)
+        if public:
+            name = next((f["name"] for f in kdrive.list_files(kdrive.settings.kdrive_public_folder_id or None)
+                         if f["id"] == str(file_id)), f"kdrive-{file_id}.jpg")
+            info = {"file_id": str(file_id), "name": name, "url": public, "local_path": None}
+        else:
+            info = kdrive.import_file(file_id)
     except kdrive.KDriveError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -822,7 +833,7 @@ def visuels_kdrive(sid: int, user: User = Depends(require_admin), db=Depends(get
             if not v.kdrive_file_id:
                 up = kdrive.upload_bytes(p.name, p.read_bytes(), folder)
                 v.kdrive_file_id = up["id"]
-            share = kdrive.create_public_share(v.kdrive_file_id)
+            share = {} if _settings.kdrive_share_uuid else kdrive.create_public_share(v.kdrive_file_id)
             url, journal = kdrive.public_url_for(share, v.kdrive_file_id)
             if url:
                 v.public_url = url

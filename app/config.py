@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Écriture sur kDrive (dépôt des visuels déclinés + liens publics) : désactivée par défaut
     kdrive_ecriture: bool = False
     kdrive_public_folder_id: str = ""    # dossier kDrive où déposer les visuels publics
+    kdrive_share_uuid: str = ""          # uuid du lien de partage public du dossier (…/app/share/<drive>/<uuid>)
     # Adresse publique de l'app : sert à construire les URL des médias stockés localement
     public_base_url: str = "http://localhost:8000"
     https_only: bool = False  # HTTPS_ONLY=1 en production : cookie de session "Secure"
