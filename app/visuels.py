@@ -35,6 +35,7 @@ STYLES = {
     "texte_vert": {"fond": None, "texte": "vert"},   # le vert des visuels « Objectif 2027 »
     "bandeau_vert": {"fond": "vert", "texte": "noir"},
     "texte_rose": {"fond": None, "texte": "rose"},   # rose de la charte, sur fond vert
+    "texte_rouge": {"fond": None, "texte": "rouge"},   # rouge de la charte, sur fond rose/beige
 }
 POSITIONS = ("bas", "haut", "centre")
 
