@@ -1,8 +1,10 @@
 """Application FastAPI : dashboard de gestion des 101 comptes Instagram."""
 import csv
 import io
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -46,6 +48,28 @@ def startup():
     finally:
         db.close()
     start_scheduler()
+
+
+# ---------- Heures : saisie en heure de Paris, stockage/comparaison en UTC ----------
+
+PARIS = ZoneInfo("Europe/Paris")
+UTC = ZoneInfo("UTC")
+
+
+def to_utc_naive(dt: datetime | None) -> datetime | None:
+    """Heure saisie (Paris, sans fuseau) -> UTC sans fuseau, comme le planificateur."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=PARIS)
+    return dt.astimezone(UTC).replace(tzinfo=None)
+
+
+def to_paris_iso(dt: datetime | None) -> str | None:
+    """UTC sans fuseau (base) -> 'AAAA-MM-JJTHH:MM' en heure de Paris."""
+    if dt is None:
+        return None
+    return dt.replace(tzinfo=UTC).astimezone(PARIS).strftime("%Y-%m-%dT%H:%M")
 
 
 # ---------- Auth ----------
@@ -249,14 +273,20 @@ class PostIn(BaseModel):
     platform: str = "instagram"        # instagram | facebook | both
     scheduled_at: datetime | None = None
     targets: list[str] | str = "all"   # "all" ou liste de codes departement
+    label: str = ""                    # libellé du plan / de la campagne (optionnel)
 
 
-@app.post("/api/posts")
-def create_post(body: PostIn, user: User = Depends(current_user), db=Depends(get_db)):
+def _check_post(db, user: User, body: PostIn):
+    """Valide un envoi (droits, cibles, URLs, format). Renvoie (comptes, urls, plateformes)."""
     if body.targets == "all" and user.role != "admin":
         raise HTTPException(403, "Seule l'equipe nationale peut publier sur tous les comptes")
-    codes = [c for c, _ in DEPARTMENTS] if body.targets == "all" else body.targets
+    codes = [c for c, _ in DEPARTMENTS] if body.targets == "all" else list(body.targets)
+    if not codes:
+        raise HTTPException(400, "Aucune cible : mettre all ou des codes de departement")
     accounts = db.query(Account).filter(Account.department_code.in_(codes)).all()
+    unknown = set(codes) - {a.department_code for a in accounts}
+    if unknown:
+        raise HTTPException(400, f"Departement(s) inconnu(s) : {', '.join(sorted(unknown))}")
     for acc in accounts:
         if not can_access_account(user, acc):
             raise HTTPException(403, f"Acces refuse au departement {acc.department_code}")
@@ -276,9 +306,16 @@ def create_post(body: PostIn, user: User = Depends(current_user), db=Depends(get
     if body.media_type in ("REELS", "STORIES") and len(urls) != 1:
         raise HTTPException(400, "Un reel ou une story demande une seule URL")
     platforms = ["instagram", "facebook"] if body.platform == "both" else [body.platform]
+    return accounts, urls, platforms
+
+
+def _create_post(db, user: User, body: PostIn) -> tuple[Post, int]:
+    """Cree un post + ses cibles. Utilise par /api/posts et par l'import de plan."""
+    accounts, urls, platforms = _check_post(db, user, body)
     post = Post(caption=body.caption, media_url=body.media_url,
                 media_type=body.media_type, platform=body.platform,
-                scheduled_at=body.scheduled_at,
+                scheduled_at=to_utc_naive(body.scheduled_at),
+                label=(body.label or "").strip()[:80],
                 created_by=user.id, is_national=(body.targets == "all"))
     db.add(post)
     db.flush()
@@ -288,8 +325,14 @@ def create_post(body: PostIn, user: User = Depends(current_user), db=Depends(get
     db.commit()
     audit(db, user.email, "publish",
           f"post={post.id} targets={len(accounts)} national={post.is_national}")
-    return {"post_id": post.id, "targets": len(accounts) * len(platforms),
-            "mode": "planifie" if body.scheduled_at else "publication sous 1 min"}
+    return post, len(accounts) * len(platforms)
+
+
+@app.post("/api/posts")
+def create_post(body: PostIn, user: User = Depends(current_user), db=Depends(get_db)):
+    post, n = _create_post(db, user, body)
+    return {"post_id": post.id, "targets": n,
+            "mode": "planifie" if post.scheduled_at else "publication sous 1 min"}
 
 
 @app.get("/api/posts/{post_id}/status")
@@ -297,6 +340,220 @@ def post_status(post_id: int, user: User = Depends(current_user), db=Depends(get
     targets = db.query(PostTarget).filter(PostTarget.post_id == post_id).all()
     return [{"dept": t.account.department_code, "platform": t.platform,
              "status": t.status, "error": t.error} for t in targets]
+
+
+# ---------- Planification ----------
+
+_TYPE_MAP = {"post": "IMAGE", "photo": "IMAGE", "image": "IMAGE", "": "IMAGE",
+             "carrousel": "CAROUSEL", "carousel": "CAROUSEL",
+             "reel": "REELS", "reels": "REELS", "video": "REELS", "vidéo": "REELS",
+             "story": "STORIES", "stories": "STORIES"}
+_TYPE_LABEL = {"IMAGE": "post", "CAROUSEL": "carrousel", "REELS": "reel", "STORIES": "story"}
+_DATE_FORMATS = ("%d/%m/%Y %H:%M", "%d/%m/%Y %Hh%M", "%d/%m/%Y %H:%M:%S", "%d/%m/%y %H:%M",
+                 "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S")
+
+
+def _parse_when(value) -> datetime | None:
+    """Heure de Paris -> datetime sans fuseau. Vide = immediat."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    s = str(value).strip()
+    if s.lower() in ("", "maintenant", "now", "immediat", "immédiat"):
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"date illisible « {s} » (attendu : 18/09/2026 09:30)")
+
+
+def _parse_targets(value) -> list[str] | str:
+    s = str(value or "").strip().lower()
+    if s in ("all", "tous", "tout", "*", "national"):
+        return "all"
+    codes = [c for c in re.split(r"[,\s|/;]+", s) if c]
+    if not codes:
+        raise ValueError("cibles vides (mettre all, ou des codes : 75, 13, 69)")
+    known = {c for c, _ in DEPARTMENTS}
+    out = []
+    for c in codes:
+        c = c.upper()
+        if c.isdigit() and len(c) == 1:
+            c = "0" + c
+        if c not in known:
+            raise ValueError(f"departement inconnu : {c}")
+        if c not in out:
+            out.append(c)
+    return out
+
+
+def _read_table(name: str, data: bytes) -> list[dict]:
+    """CSV (virgule ou point-virgule) ou XLSX -> liste de dict, en-tetes en minuscules."""
+    name = (name or "").lower()
+    if name.endswith(".csv"):
+        text = data.decode("utf-8-sig")
+        first = text.splitlines()[0] if text.splitlines() else ""
+        delim = ";" if first.count(";") > first.count(",") else ","
+        return [{(k or "").strip().lower(): (v if v is not None else "") for k, v in r.items()}
+                for r in csv.DictReader(io.StringIO(text), delimiter=delim)]
+    if name.endswith(".xlsx"):
+        from openpyxl import load_workbook
+        ws = load_workbook(io.BytesIO(data), read_only=True, data_only=True).active
+        it = ws.iter_rows(values_only=True)
+        headers = [str(h or "").strip().lower() for h in next(it, [])]
+        rows = []
+        for r in it:
+            if r is None or all(v in (None, "") for v in r):
+                continue
+            rows.append({headers[i]: (v if v is not None else "")
+                         for i, v in enumerate(r) if i < len(headers)})
+        return rows
+    raise HTTPException(400, "Format non supporte : utilisez .csv ou .xlsx")
+
+
+def _serialize_post(p: Post) -> dict:
+    counts = {"pending": 0, "published": 0, "failed": 0, "rate_limited": 0, "cancelled": 0}
+    for t in p.targets:
+        counts[t.status] = counts.get(t.status, 0) + 1
+    total = len(p.targets)
+    now = datetime.utcnow()
+    if total and counts["published"] == total:
+        state = "publié"
+    elif counts["pending"]:
+        state = "programmé" if (p.scheduled_at and p.scheduled_at > now) else "en cours"
+    elif counts["failed"] or counts["rate_limited"]:
+        state = "partiel" if counts["published"] else "échecs"
+    elif total and counts["cancelled"] == total:
+        state = "annulé"
+    else:
+        state = "terminé"
+    urls = [u.strip() for u in (p.media_url or "").replace("|", "\n").splitlines() if u.strip()]
+    return {"id": p.id, "label": p.label or "", "when": to_paris_iso(p.scheduled_at),
+            "created_at": to_paris_iso(p.created_at),
+            "media_type": p.media_type, "type_label": _TYPE_LABEL.get(p.media_type, p.media_type),
+            "platform": p.platform, "media_url": p.media_url or "",
+            "first_url": urls[0] if urls else "", "n_urls": len(urls),
+            "caption": p.caption or "", "is_national": bool(p.is_national),
+            "total": total, "counts": counts, "state": state,
+            "targets": sorted({t.account.department_code for t in p.targets})}
+
+
+@app.get("/api/plan")
+def plan_list(user: User = Depends(current_user), db=Depends(get_db),
+              include_done: bool = False, days: int = 30):
+    """Le plan : envois a venir (et termines si include_done)."""
+    since = datetime.utcnow() - timedelta(days=days)
+    posts = db.query(Post).filter((Post.created_at >= since) | (Post.scheduled_at >= since)).all()
+    if user.role != "admin":
+        posts = [p for p in posts
+                 if any(t.account.department_code == user.department_code for t in p.targets)]
+    out = [_serialize_post(p) for p in posts]
+    if not include_done:
+        out = [o for o in out if o["counts"]["pending"] or o["counts"]["failed"]
+               or o["counts"]["rate_limited"]]
+    out.sort(key=lambda o: (o["when"] or o["created_at"] or ""))
+    return out
+
+
+@app.post("/api/posts/{post_id}/cancel")
+def cancel_post(post_id: int, user: User = Depends(current_user), db=Depends(get_db)):
+    """Annule les cibles encore en attente d'un envoi."""
+    post = db.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Envoi inconnu")
+    n = 0
+    for t in post.targets:
+        if t.status == "pending" and can_access_account(user, t.account):
+            t.status, t.error = "cancelled", "annule avant envoi"
+            n += 1
+    db.commit()
+    audit(db, user.email, "post_cancel", f"post={post_id} cibles={n}")
+    return {"cancelled": n}
+
+
+@app.post("/api/posts/{post_id}/retry")
+def retry_post(post_id: int, user: User = Depends(current_user), db=Depends(get_db)):
+    """Remet en attente les cibles en echec (relance sous 1 min)."""
+    post = db.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Envoi inconnu")
+    n = 0
+    for t in post.targets:
+        if t.status in ("failed", "rate_limited") and can_access_account(user, t.account):
+            t.status, t.error = "pending", None
+            n += 1
+    db.commit()
+    audit(db, user.email, "post_retry", f"post={post_id} cibles={n}")
+    return {"retried": n}
+
+
+@app.post("/api/plan/import")
+async def plan_import(file: UploadFile = File(...), dry_run: bool = False,
+                      user: User = Depends(require_admin), db=Depends(get_db)):
+    """Import d'un plan : une ligne = un envoi.
+
+    Colonnes : quand, cibles, type, visuel, legende, libelle, plateforme.
+    dry_run=true : relit et valide le plan sans rien programmer.
+    """
+    rows = _read_table(file.filename, await file.read())
+    lines, errors, created = [], [], 0
+
+    def g(row, *keys):
+        for k in keys:
+            v = row.get(k)
+            if v not in (None, ""):
+                return str(v).strip()
+        return ""
+
+    for i, row in enumerate(rows, start=2):   # ligne 1 = en-tete
+        visuel = g(row, "visuel", "visuels", "image", "media", "url", "media_url")
+        legende = g(row, "legende", "légende", "caption", "texte")
+        cibles = g(row, "cibles", "comptes", "departements", "départements")
+        if not (visuel or legende or cibles):
+            continue  # ligne vide
+        entry = {"ligne": i, "quand": "", "cibles": "", "n_cibles": 0, "type": "",
+                 "visuel": visuel.replace("|", "\n"), "legende": legende[:2200],
+                 "libelle": g(row, "libelle", "libellé", "label", "campagne")[:80], "statut": "ok"}
+        try:
+            when = _parse_when(row.get("quand") if row.get("quand") not in (None, "")
+                               else g(row, "date", "heure"))
+            targets = _parse_targets(cibles)
+            t = g(row, "type", "format").lower()
+            if t not in _TYPE_MAP:
+                raise ValueError(f"type inconnu « {t} » (post, carrousel, reel, story)")
+            plat = (g(row, "plateforme", "platform") or "instagram").lower()
+            plat = {"les deux": "both", "deux": "both"}.get(plat, plat)
+            if plat not in ("instagram", "facebook", "both"):
+                raise ValueError(f"plateforme inconnue « {plat} »")
+            if not visuel:
+                raise ValueError("visuel manquant (URL https publique)")
+            body = PostIn(caption=entry["legende"], media_url=entry["visuel"],
+                          media_type=_TYPE_MAP[t], platform=plat, scheduled_at=when,
+                          targets=targets, label=entry["libelle"])
+            accounts, urls, platforms = _check_post(db, user, body)   # meme validation que l'envoi
+            entry["quand"] = when.strftime("%d/%m/%Y %H:%M") if when else "immédiat"
+            entry["cibles"] = "tous" if targets == "all" else ", ".join(targets)
+            entry["n_cibles"] = len(accounts) * len(platforms)
+            entry["type"] = _TYPE_LABEL[body.media_type] + (f" ({len(urls)})" if len(urls) > 1 else "")
+            if not dry_run:
+                post, _ = _create_post(db, user, body)
+                entry["post_id"] = post.id
+                created += 1
+        except HTTPException as e:
+            entry["statut"] = f"erreur : {e.detail}"
+            errors.append(f"ligne {i} : {e.detail}")
+        except ValueError as e:
+            entry["statut"] = f"erreur : {e}"
+            errors.append(f"ligne {i} : {e}")
+        lines.append(entry)
+    if not dry_run:
+        audit(db, user.email, "plan_import",
+              f"fichier={file.filename} envois={created} erreurs={len(errors)}")
+    ok = created if not dry_run else sum(1 for l in lines if l["statut"] == "ok")
+    return {"dry_run": dry_run, "ok": ok, "erreurs": errors, "lignes": lines}
 
 
 # ---------- Statistiques ----------

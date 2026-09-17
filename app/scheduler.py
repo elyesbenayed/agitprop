@@ -30,7 +30,7 @@ async def process_pending_posts():
         targets = (db.query(PostTarget).join(Post)
                    .filter(PostTarget.status == "pending")
                    .filter((Post.scheduled_at.is_(None)) | (Post.scheduled_at <= now))
-                   .limit(50).all())
+                   .order_by(Post.scheduled_at, PostTarget.id).limit(400).all())
         for t in targets:
             acc = t.account
             if acc.status != "active":

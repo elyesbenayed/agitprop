@@ -56,6 +56,7 @@ class Post(Base):
     scheduled_at = Column(DateTime, nullable=True)    # None = immédiat
     created_by = Column(Integer, ForeignKey("users.id"))
     is_national = Column(Boolean, default=False)      # post coordonné national
+    label = Column(String, default="")                # libellé du plan / de la campagne
     created_at = Column(DateTime, default=datetime.utcnow)
     targets = relationship("PostTarget", back_populates="post")
 
@@ -110,6 +111,7 @@ def init_db():
             "ALTER TABLE accounts ADD COLUMN fb_page_token_enc TEXT",
             "ALTER TABLE posts ADD COLUMN platform VARCHAR DEFAULT 'instagram'",
             "ALTER TABLE post_targets ADD COLUMN platform VARCHAR DEFAULT 'instagram'",
+            "ALTER TABLE posts ADD COLUMN label VARCHAR DEFAULT ''",
         ):
             try:
                 conn.execute(text(stmt))

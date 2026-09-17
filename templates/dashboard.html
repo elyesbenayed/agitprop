@@ -72,6 +72,28 @@
   .pt:disabled,.pt:disabled:hover{background:#fff;color:var(--gris-texte);border-color:var(--gris);
       cursor:not-allowed;opacity:.7}
   .linktoggle{display:flex;gap:.5rem;margin:.4rem 0 .2rem}
+  /* ---- planification ---- */
+  .planbar{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin:1.3rem 0 .6rem}
+  .chk{font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:.4rem;cursor:pointer}
+  .chk input{width:auto;margin:0}
+  .planwrap{overflow-x:auto}
+  table.plan{width:100%;border-collapse:collapse;font-size:.78rem}
+  table.plan th{text-align:left;font-weight:800;text-transform:lowercase;padding:.45rem .5rem;
+      border-bottom:1.5px solid var(--noir);white-space:nowrap}
+  table.plan td{padding:.5rem .5rem;border-bottom:1px solid var(--gris-fond);vertical-align:top}
+  table.plan img{width:44px;height:44px;object-fit:cover;border-radius:6px;display:block;background:var(--gris-fond)}
+  table.plan .cap{max-width:240px;color:var(--gris-texte)}
+  table.plan .act{display:flex;gap:.3rem;flex-wrap:wrap}
+  table.plan .act button{padding:.3rem .7rem;font-size:.7rem}
+  .st{display:inline-block;padding:.15rem .55rem;border-radius:999px;font-weight:700;font-size:.7rem;
+      border:1.5px solid var(--noir);white-space:nowrap}
+  .st.programme{background:#fff}
+  .st.encours{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+  .st.publie{background:var(--noir);color:#fff}
+  .st.echecs,.st.partiel,.st.erreur{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+  .st.annule,.st.termine{background:#fff;color:var(--gris-texte);border-color:var(--gris)}
+  .st.ok{background:#fff;color:var(--bleu);border-color:var(--bleu)}
+  .subhint{font-size:.7rem;color:var(--gris-texte);font-weight:500;margin-top:.2rem}
   .mockwrap{display:flex;justify-content:center;margin-top:.8rem}
   .mock{width:min(380px,100%);background:#fff;border:1px solid #dbdbdb;border-radius:10px;
         overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -252,13 +274,48 @@
   </select>
   <input id="targets" placeholder='cibles : "all" (tous les comptes) ou codes séparés par des virgules (ex. 75,13,69)'
          value="{{ '' if user.role == 'admin' else (user.department_code or '') }}">
-  <input id="scheduled_at" type="datetime-local">
+  <input id="scheduled_at" type="datetime-local" title="heure de paris ; vide = envoi immédiat">
+  <input id="label" placeholder="libellé du plan ou de la campagne (optionnel, ex. séquence 18 sept.)">
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.3rem">
     <button id="pubbtn" onclick="publish()">publier</button>
     <button onclick="showPreview()">aperçu</button>
   </div>
   <p class="msg" id="result"></p>
 
+</div>
+
+<div class="card" id="plancard">
+  <h2>planification</h2>
+  <p class="hint">une ligne par envoi : quand, sur quels comptes, quel visuel, quelle légende.
+  {% if user.role == "admin" %}préparez le plan dans le <a href="/static/Modele_Plan.xlsx">modèle excel</a>
+  ou un csv, cliquez « vérifier » pour le relire, puis « programmer ». {% endif %}les envois partent
+  automatiquement à l'heure prévue, heure de paris, tant que l'app tourne.</p>
+  {% if user.role == "admin" %}
+  <div class="filerow">
+    <label class="filebtn" for="plan_file">choisir un plan</label>
+    <span class="filename" id="plan_filename">aucun fichier choisi</span>
+    <input id="plan_file" type="file" accept=".csv,.xlsx" hidden
+           onchange="document.getElementById('plan_filename').textContent = this.files[0] ? this.files[0].name : 'aucun fichier choisi'; document.getElementById('plan_go').disabled = true; document.getElementById('plan_preview').innerHTML = ''; setMsg('plan_result', null, '');">
+    <button class="ghostbtn" onclick="planImport(true)">vérifier</button>
+    <button id="plan_go" onclick="planImport(false)" disabled>programmer</button>
+  </div>
+  <p class="msg" id="plan_result"></p>
+  <div id="plan_preview" class="planwrap"></div>
+  {% endif %}
+  <div class="planbar">
+    <h2 style="margin:0">envois programmés</h2>
+    <label class="chk"><input type="checkbox" id="plan_done" onchange="loadPlan()"> afficher aussi les envois terminés</label>
+    <button class="ghostbtn" onclick="loadPlan()">actualiser</button>
+  </div>
+  <div id="plan_table" class="planwrap hint">chargement…</div>
+</div>
+
+<div class="modal" id="detailmodal" onclick="if(event.target===this) this.classList.remove('open')">
+  <div class="mpanel" style="width:min(560px,96vw)">
+    <button type="button" class="mclose" onclick="document.getElementById('detailmodal').classList.remove('open')" aria-label="fermer">&#10005;</button>
+    <h2 style="margin:0 0 .6rem" id="detailtitle">détail de l'envoi</h2>
+    <div id="detailbody" style="max-height:60vh;overflow:auto"></div>
+  </div>
 </div>
 
 <div class="modal" id="surepop" style="z-index:60">
@@ -283,6 +340,7 @@
         <button type="button" class="pt" id="pt-fb" onclick="setPrev('facebook')">facebook</button>
       </div>
     </div>
+    <p class="hint" id="prevmeta" style="margin:.4rem 0 0"></p>
     <div class="mockwrap"><div id="preview" style="width:min(380px,100%)"></div></div>
     <div id="confirmrow" style="display:none;margin-top:1rem;gap:.6rem;flex-wrap:wrap">
       <button onclick="askConfirm()">confirmer la publication</button>
@@ -350,6 +408,7 @@
 </div>
 
 <script>
+const ACCOUNTS = { {% for a in accounts %}"{{ a.department_code }}": "{{ a.ig_username or '' }}",{% endfor %} };
 async function loadStats(){
   const r = await fetch('/api/stats/overview');
   if(!r.ok) return;
@@ -475,14 +534,16 @@ async function doPublish(){
     media_type: effType(document.getElementById('media_type').value, getUrls()),
     platform: document.getElementById('platform').value,
     targets: t === 'all' ? 'all' : t.split(',').map(s=>s.trim()),
-    scheduled_at: document.getElementById('scheduled_at').value || null
+    scheduled_at: document.getElementById('scheduled_at').value || null,
+    label: document.getElementById('label').value.trim()
   };
   const r = await fetch('/api/posts', {method:'POST',
     headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   const d = await r.json();
   setMsg('result', r.ok, r.ok
-    ? `✔ post #${d.post_id} créé pour ${d.targets} compte(s) — ${d.mode}`
+    ? `✔ envoi #${d.post_id} créé pour ${d.targets} compte(s) — ${d.mode}`
     : `erreur : ${d.detail}`);
+  if(r.ok) loadPlan();
 }
 function prefill(code){
   document.getElementById('link_code').value = code;
@@ -548,6 +609,146 @@ async function importFile(){
   if(r.ok && d.ok > 0) setTimeout(()=>location.reload(), 2500);
 }
 loadStats();
+
+/* ---- aperçu : quel compte, quand ---- */
+function previewTargets(){
+  const t = document.getElementById('targets').value.trim();
+  return (!t || t === 'all') ? 'all' : t.split(',').map(s => s.trim()).filter(Boolean);
+}
+function previewName(){
+  const t = previewTargets();
+  if(t !== 'all' && t.length === 1) return ACCOUNTS[t[0]] || ('humanistes' + t[0]);
+  return 'lafrancehumaniste';
+}
+function fmtWhen(iso){
+  if(!iso) return 'immédiat';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString('fr-FR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function previewTime(){ const w = document.getElementById('scheduled_at').value; return w ? fmtWhen(w) : '1 h'; }
+function previewSub(){ const w = document.getElementById('scheduled_at').value; return w ? 'programmé · ' + fmtWhen(w) : 'France'; }
+function previewMeta(urls, type){
+  const t = previewTargets();
+  const n = t === 'all' ? Object.keys(ACCOUNTS).length : t.length;
+  const who = t === 'all' ? `tous les comptes (${n})` : (n === 1 ? `@${previewName()}` : `${n} comptes : ${t.join(', ')}`);
+  const w = document.getElementById('scheduled_at').value;
+  const label = document.getElementById('label').value.trim();
+  return `${who} · ${w ? 'programmé le ' + fmtWhen(w) : 'envoi immédiat'} · ${urls.length} visuel(s)` + (label ? ` · ${label}` : '');
+}
+
+/* ---- planification ---- */
+const STATE_CLASS = {'programmé':'programme', 'en cours':'encours', 'publié':'publie',
+                     'échecs':'echecs', 'partiel':'partiel', 'annulé':'annule', 'terminé':'termine'};
+let PLAN_ROWS = {};
+async function loadPlan(){
+  const box = document.getElementById('plan_table');
+  const done = document.getElementById('plan_done').checked;
+  const r = await fetch('/api/plan?include_done=' + (done ? 'true' : 'false'));
+  if(!r.ok){ box.className = 'planwrap hint'; box.textContent = 'impossible de charger le plan.'; return; }
+  const rows = await r.json();
+  PLAN_ROWS = Object.fromEntries(rows.map(p => [p.id, p]));
+  if(!rows.length){
+    box.className = 'planwrap hint';
+    box.textContent = done ? 'aucun envoi.' : 'aucun envoi à venir. importez un plan ou créez un envoi ci-dessus.';
+    return;
+  }
+  box.className = 'planwrap';
+  box.innerHTML = `<table class="plan"><thead><tr><th>quand</th><th>libellé</th><th>type</th><th>cibles</th><th>visuel</th><th>légende</th><th>état</th><th></th></tr></thead><tbody>` +
+    rows.map(p => {
+      const c = p.counts, ko = c.failed + c.rate_limited;
+      const detail = [c.published ? `${c.published} publié` : '', c.pending ? `${c.pending} en attente` : '',
+                      ko ? `${ko} échec` : '', c.cancelled ? `${c.cancelled} annulé` : ''].filter(Boolean).join(' · ');
+      const cibles = p.is_national ? `tous (${p.total})` :
+                     (p.targets.length <= 6 ? p.targets.join(', ') : `${p.targets.length} comptes`);
+      const act = [
+        `<button type="button" class="ghostbtn" onclick="planLoad(${p.id})" title="recharger dans le formulaire : aperçu, duplication">charger</button>`,
+        `<button type="button" class="ghostbtn" onclick="planDetail(${p.id})">détail</button>`,
+        c.pending ? `<button type="button" class="danger" onclick="planCancel(${p.id})">annuler</button>` : '',
+        ko ? `<button type="button" onclick="planRetry(${p.id})">relancer</button>` : ''
+      ].join('');
+      return `<tr>
+        <td><b>${fmtWhen(p.when)}</b>${p.when ? '' : '<div class="subhint">créé ' + fmtWhen(p.created_at) + '</div>'}</td>
+        <td>${esc(p.label || '—')}</td>
+        <td>${p.type_label}${p.n_urls > 1 ? ` (${p.n_urls})` : ''}${p.platform !== 'instagram' ? '<div class="subhint">' + p.platform + '</div>' : ''}</td>
+        <td>${esc(cibles)}</td>
+        <td>${p.first_url ? `<a href="${esc(p.first_url)}" target="_blank" rel="noopener"><img src="${esc(p.first_url)}" alt=""></a>` : ''}</td>
+        <td class="cap">${esc(p.caption.slice(0, 90))}${p.caption.length > 90 ? '…' : ''}</td>
+        <td><span class="st ${STATE_CLASS[p.state] || ''}">${p.state}</span><div class="subhint">${detail}</div></td>
+        <td><div class="act">${act}</div></td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+function planLoad(id){
+  const p = PLAN_ROWS[id]; if(!p) return;
+  document.getElementById('media_url').value = p.media_url.replace(/\|/g, '\n');
+  document.getElementById('caption').value = p.caption;
+  document.getElementById('media_type').value = p.media_type === 'CAROUSEL' ? 'IMAGE' : p.media_type;
+  document.getElementById('platform').value = p.platform;
+  document.getElementById('targets').value = p.is_national ? 'all' : p.targets.join(',');
+  document.getElementById('scheduled_at').value = p.when || '';
+  document.getElementById('label').value = p.label || '';
+  document.getElementById('media_url').scrollIntoView({behavior:'smooth', block:'center'});
+  setMsg('result', null, `envoi #${id} rechargé dans le formulaire : modifiez, puis aperçu ou publier pour créer un nouvel envoi.`);
+  showPreview();
+}
+async function planDetail(id){
+  const p = PLAN_ROWS[id];
+  const r = await fetch(`/api/posts/${id}/status`);
+  const rows = await r.json();
+  const lab = {pending:'en attente', published:'publié', failed:'échec', rate_limited:'quota atteint', cancelled:'annulé'};
+  document.getElementById('detailtitle').textContent = `envoi #${id}` + (p && p.label ? ` · ${p.label}` : '');
+  document.getElementById('detailbody').innerHTML = `<table class="plan"><thead><tr><th>compte</th><th>plateforme</th><th>état</th><th>message</th></tr></thead><tbody>` +
+    rows.map(t => `<tr><td><b>${t.dept}</b> ${esc(ACCOUNTS[t.dept] || '')}</td><td>${t.platform}</td><td><span class="st ${t.status === 'published' ? 'publie' : t.status === 'pending' ? 'programme' : t.status === 'cancelled' ? 'annule' : 'erreur'}">${lab[t.status] || t.status}</span></td><td class="cap">${esc(t.error || '')}</td></tr>`).join('') + '</tbody></table>';
+  document.getElementById('detailmodal').classList.add('open');
+}
+async function planCancel(id){
+  if(!confirm(`annuler les envois encore en attente de la ligne #${id} ?`)) return;
+  const r = await fetch(`/api/posts/${id}/cancel`, {method:'POST'});
+  const d = await r.json();
+  setMsg('plan_result', r.ok, r.ok ? `✔ ${d.cancelled} envoi(s) annulé(s)` : `erreur : ${d.detail}`);
+  loadPlan();
+}
+async function planRetry(id){
+  const r = await fetch(`/api/posts/${id}/retry`, {method:'POST'});
+  const d = await r.json();
+  setMsg('plan_result', r.ok, r.ok ? `✔ ${d.retried} envoi(s) relancé(s), départ sous une minute` : `erreur : ${d.detail}`);
+  loadPlan();
+}
+function renderPlanPreview(lines){
+  if(!lines.length) return '<p class="hint">aucune ligne lue dans le fichier.</p>';
+  return `<table class="plan"><thead><tr><th>ligne</th><th>quand</th><th>cibles</th><th>type</th><th>visuel</th><th>légende</th><th>libellé</th><th>statut</th></tr></thead><tbody>` +
+    lines.map(l => `<tr><td>${l.ligne}</td><td><b>${esc(l.quand)}</b></td><td>${esc(l.cibles)}${l.n_cibles ? ` (${l.n_cibles})` : ''}</td><td>${esc(l.type)}</td>
+      <td>${l.visuel ? `<img src="${esc(l.visuel.split('\n')[0])}" alt="">` : ''}</td>
+      <td class="cap">${esc(l.legende.slice(0, 80))}${l.legende.length > 80 ? '…' : ''}</td><td>${esc(l.libelle)}</td>
+      <td><span class="st ${l.statut === 'ok' ? 'ok' : 'erreur'}">${esc(l.statut)}</span></td></tr>`).join('') + '</tbody></table>';
+}
+async function planImport(dry){
+  const input = document.getElementById('plan_file');
+  const f = input && input.files[0];
+  if(!f){ setMsg('plan_result', false, 'choisissez un fichier de plan (.xlsx ou .csv).'); return; }
+  if(!dry){
+    const n = document.querySelectorAll('#plan_preview .st.ok').length;
+    if(!confirm(`programmer ${n} envoi(s) ? ils partiront automatiquement aux heures prévues.`)) return;
+  }
+  const fd = new FormData(); fd.append('file', f);
+  setMsg('plan_result', null, dry ? 'lecture du plan…' : 'programmation…');
+  const r = await fetch('/api/plan/import?dry_run=' + (dry ? 'true' : 'false'), {method:'POST', body: fd});
+  const d = await r.json();
+  if(!r.ok){ setMsg('plan_result', false, `erreur : ${d.detail}`); return; }
+  const nErr = d.erreurs.length;
+  document.getElementById('plan_preview').innerHTML = renderPlanPreview(d.lignes);
+  if(dry){
+    setMsg('plan_result', nErr === 0, nErr === 0
+      ? `✔ ${d.ok} envoi(s) lus, aucune erreur. relisez le tableau puis cliquez « programmer ».`
+      : `${nErr} ligne(s) en erreur — corrigez le fichier puis vérifiez à nouveau.`);
+    document.getElementById('plan_go').disabled = !(nErr === 0 && d.ok > 0);
+  } else {
+    setMsg('plan_result', nErr === 0, `✔ ${d.ok} envoi(s) programmé(s)` + (nErr ? ` — ${nErr} ligne(s) en erreur` : ''));
+    document.getElementById('plan_go').disabled = true;
+    loadPlan();
+  }
+}
+loadPlan();
+setInterval(loadPlan, 60000);
 
 /* ---- apercu ---- */
 let prevPlatform = 'instagram';
@@ -635,7 +836,7 @@ function igStory(urls, type){
       <div class="sprog">${segs}</div>
       <div class="shead">
         <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
-        <span class="sname">lafrancehumaniste</span><span class="stime">1 h</span>
+        <span class="sname">${previewName()}</span><span class="stime">${previewTime()}</span>
         <span class="sdots">${SVGS.dotsW}</span>
         <span class="sx">${SVGS.closeW}</span>
       </div>
@@ -667,13 +868,13 @@ function igPreview(urls, cap, type){
   return `<div class="mock">
     <div class="mhead">
       <div class="mavatar"><img src="/static/Logo-LFH-black.png" alt=""></div>
-      <div><div class="mname">lafrancehumaniste</div><div class="msub">France</div></div>
+      <div><div class="mname">${previewName()}</div><div class="msub">${previewSub()}</div></div>
       <div class="mdots">${SVGS.dots}</div>
     </div>
     ${media}
     ${IG_ICONS}
     <div class="mlikes">1 024 j'aime</div>
-    <div class="mcap"><b>lafrancehumaniste</b> ${cap ? capToggle(cap, 125, 'plus', 'moins') : '<span style="color:#999">votre légende…</span>'}</div>
+    <div class="mcap"><b>${previewName()}</b> ${cap ? capToggle(cap, 125, 'plus', 'moins') : '<span style="color:#999">votre légende…</span>'}</div>
     <div class="mtime">il y a 1 minute</div>
   </div>`;
 }
@@ -783,6 +984,7 @@ function renderPreview(){
   const cap = document.getElementById('caption').value;
   const type = effType(document.getElementById('media_type').value, urls);
   const box = document.getElementById('preview');
+  document.getElementById('prevmeta').textContent = previewMeta(urls, type);
   if(!urls.length){ box.innerHTML = ''; return; }
   box.innerHTML = show === 'facebook' ? fbPreview(urls, cap, type) : igPreview(urls, cap, type);
   attachSlider();
@@ -796,7 +998,7 @@ document.addEventListener('keydown', e => { if(e.key === 'Escape'){ cancelConfir
 function onPostInput(){
   if(document.getElementById('prevmodal').classList.contains('open')) renderPreview();
 }
-for(const id of ['caption','media_url','media_type','platform','targets','scheduled_at']){
+for(const id of ['caption','media_url','media_type','platform','targets','scheduled_at','label']){
   const el = document.getElementById(id);
   el.addEventListener('input', onPostInput);
   el.addEventListener('change', onPostInput);
