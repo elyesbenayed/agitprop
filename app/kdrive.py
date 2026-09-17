@@ -114,6 +114,28 @@ def delete_file(file_id: str) -> None:
             _check(r)
 
 
+def publish_jpeg_from(file_id: str, name: str, folder: str | None = None, max_dim: int = 1920) -> dict:
+    """Meta n'accepte que le JPEG : télécharge un fichier kDrive, le convertit en JPEG (RGB, côté max
+    1920 px), le dépose dans le dossier public et renvoie {file_id, name, url} du JPEG public."""
+    import io
+    from PIL import Image
+    content, _mime = download(file_id)
+    img = Image.open(io.BytesIO(content)).convert("RGB")
+    w, h = img.size
+    if max(w, h) > max_dim:
+        r = max_dim / max(w, h)
+        img = img.resize((int(w * r), int(h * r)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=90, optimize=True)
+    jpg_name = Path(name).stem + ".jpg"
+    up = upload_bytes(jpg_name, buf.getvalue(), folder or settings.kdrive_public_folder_id, conflict="rename")
+    url, journal = public_url_for({}, up["id"])
+    if not url:
+        raise KDriveError("JPEG déposé mais adresse publique introuvable :\n" + journal)
+    return {"file_id": up["id"], "name": up.get("name", jpg_name), "url": url, "source_id": str(file_id),
+            "size": len(buf.getvalue()), "dimensions": img.size}
+
+
 def _safe_name(name: str) -> str:
     base = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-") or "media"
     return base[:80]

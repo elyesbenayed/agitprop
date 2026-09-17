@@ -216,7 +216,7 @@ async function kdEtat(){
   try{
     const e = await api('/api/kdrive/etat');
     document.getElementById('kd_etat').innerHTML = e.configure
-      ? `connecté au kdrive <b>${esc(e.drive_id)}</b>, dossier <b>${esc(e.dossier)}</b>. l'app ne fait que lire : lister, afficher les vignettes, copier un visuel dans la banque. rien n'est écrit sur kdrive.`
+      ? `connecté au kdrive <b>${esc(e.drive_id)}</b>, dossier <b>${esc(e.dossier)}</b>. les fichiers du dossier partagé public sont utilisés par leur adresse publique directe. un png est converti en jpeg (exigence meta) et le jpeg déposé à côté.`
       : `non configuré : renseignez <code>KDRIVE_TOKEN</code> et <code>KDRIVE_DRIVE_ID</code> dans le <code>.env</code> (token api infomaniak, périmètre « drive »), puis relancez l'app. lecture seule, rien n'est jamais écrit sur kdrive.`;
     const w = e.url_publique ? '' : `<b style="color:var(--rouge)">adresse publique de l'app = ${esc(e.public_base_url)} : meta ne pourra pas lire ces médias tant que l'app n'est pas hébergée (PUBLIC_BASE_URL).</b>`;
     document.getElementById('up_warn').innerHTML = w;
@@ -246,7 +246,8 @@ async function kdImport(id, name){
   if(title === null) return;
   setMsg('kd_msg', null, 'copie depuis kdrive…');
   try{
-    const a = await api(`/api/kdrive/importer/${encodeURIComponent(id)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title})});
+    const dossier = KD_STACK[KD_STACK.length - 1] || '';
+    const a = await api(`/api/kdrive/importer/${encodeURIComponent(id)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title, dossier})});
     setMsg('kd_msg', true, `✔ importé : post #${a.id}`); await bkLoad(); bkEdit(a.id);
   }catch(e){ setMsg('kd_msg', false, 'erreur : ' + e.message); }
 }

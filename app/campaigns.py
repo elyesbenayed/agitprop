@@ -350,6 +350,7 @@ class KImportIn(BaseModel):
     caption: str = ""
     media_type: str = "IMAGE"
     tags: str = ""
+    dossier: str = ""          # dossier kDrive du fichier (pour déposer le JPEG converti à côté)
 
 
 @router.post("/api/kdrive/importer/{file_id}")
@@ -359,13 +360,21 @@ def kdrive_importer(file_id: str, body: KImportIn, user: User = Depends(require_
     Si le fichier est dans le dossier partagé publiquement (KDRIVE_SHARE_UUID), son adresse publique
     directe est utilisée telle quelle : Meta la lira, sans copie locale. Sinon, copie sous static/media."""
     info, public = None, None
+    dossier = body.dossier or kdrive.settings.kdrive_public_folder_id or None
     if kdrive.settings.kdrive_share_uuid:
         public, _ = kdrive.public_url_for({}, str(file_id))
     try:
         if public:
-            name = next((f["name"] for f in kdrive.list_files(kdrive.settings.kdrive_public_folder_id or None)
-                         if f["id"] == str(file_id)), f"kdrive-{file_id}.jpg")
-            info = {"file_id": str(file_id), "name": name, "url": public, "local_path": None}
+            meta = next((f for f in kdrive.list_files(dossier) if f["id"] == str(file_id)), None)
+            name = meta["name"] if meta else f"kdrive-{file_id}.jpg"
+            if meta and meta.get("ext") in (".jpg", ".jpeg", ".mp4", ".mov"):
+                info = {"file_id": str(file_id), "name": name, "url": public, "local_path": None}
+            else:
+                # PNG / WebP : Meta exige du JPEG -> conversion et dépôt du JPEG dans le même dossier public
+                if not kdrive.settings.kdrive_ecriture:
+                    raise kdrive.KDriveError("ce fichier n'est pas un JPEG ; la conversion demande KDRIVE_ECRITURE=1")
+                j = kdrive.publish_jpeg_from(str(file_id), name, dossier)
+                info = {"file_id": j["file_id"], "name": j["name"], "url": j["url"], "local_path": None}
         else:
             info = kdrive.import_file(file_id)
     except kdrive.KDriveError as e:
