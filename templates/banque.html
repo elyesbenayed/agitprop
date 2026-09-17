@@ -90,10 +90,11 @@ la légende peut contenir <code>{departement}</code>, <code>{code}</code>, <code
         <select id="dec_style" style="flex:1;min-width:150px" onchange="decApercu()">
           <option value="bandeau_bleu">bandeau bleu, texte blanc</option><option value="bandeau_noir">bandeau noir, texte blanc</option>
           <option value="bandeau_blanc">bandeau blanc, texte noir</option><option value="texte_blanc">texte blanc seul</option>
-          <option value="texte_noir">texte noir seul</option><option value="texte_bleu">texte bleu seul</option>
+          <option value="texte_noir">texte noir seul</option><option value="texte_bleu">texte bleu seul</option><option value="texte_vert">texte vert « objectif 2027 »</option><option value="bandeau_vert">bandeau vert, texte noir</option><option value="texte_rose">texte rose (sur fond vert)</option>
         </select>
         <select id="dec_pos" style="flex:1;min-width:100px" onchange="decApercu()"><option value="bas">en bas</option><option value="haut">en haut</option><option value="centre">au centre</option></select>
-        <select id="dec_taille" style="flex:1;min-width:100px" onchange="decApercu()"><option value="0.7">petit</option><option value="1" selected>normal</option><option value="1.4">grand</option></select>
+        <select id="dec_align" style="flex:1;min-width:100px" onchange="decApercu()"><option value="centre">centré</option><option value="gauche">à gauche</option><option value="droite">à droite</option></select>
+        <select id="dec_taille" style="flex:1;min-width:100px" onchange="decApercu()"><option value="0.5">très petit (taille « objectif 2027 »)</option><option value="0.7">petit</option><option value="1" selected>normal</option><option value="1.4">grand</option></select>
       </div>
       <div class="row"><label class="chk"><input type="checkbox" id="dec_min" checked onchange="decApercu()"> tout en minuscules (charte)</label>
         <select id="dec_code" style="width:auto;margin:0" onchange="decApercu()"><option value="75">aperçu : 75 paris</option><option value="2A">2A corse-du-sud</option><option value="971">971 guadeloupe</option><option value="04">04 alpes-de-haute-provence</option></select></div>
@@ -262,6 +263,7 @@ function decForm(extra){
   fd.append('style', document.getElementById('dec_style').value);
   fd.append('position', document.getElementById('dec_pos').value);
   fd.append('taille', document.getElementById('dec_taille').value);
+  fd.append('align', document.getElementById('dec_align').value);
   fd.append('minuscules', document.getElementById('dec_min').checked ? 'true' : 'false');
   for(const k in (extra || {})) fd.append(k, extra[k]);
   return fd;

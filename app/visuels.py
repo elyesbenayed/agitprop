@@ -21,7 +21,8 @@ FONTS = BASE / "static" / "fonts"
 VARIANTS_DIR = BASE / "static" / "media" / "variants"
 MAX_DIM = 1440
 
-COULEURS = {"bleu": (40, 40, 234), "noir": (0, 0, 0), "blanc": (255, 255, 255), "rouge": (232, 63, 19)}
+COULEURS = {"bleu": (40, 40, 234), "noir": (0, 0, 0), "blanc": (255, 255, 255), "rouge": (232, 63, 19),
+            "vert": (28, 119, 104), "rose": (247, 183, 196)}
 STYLES = {
     # bandeau plein + texte contrasté (lisible sur n'importe quel fond)
     "bandeau_bleu": {"fond": "bleu", "texte": "blanc"},
@@ -31,6 +32,9 @@ STYLES = {
     "texte_blanc": {"fond": None, "texte": "blanc"},
     "texte_noir": {"fond": None, "texte": "noir"},
     "texte_bleu": {"fond": None, "texte": "bleu"},
+    "texte_vert": {"fond": None, "texte": "vert"},   # le vert des visuels « Objectif 2027 »
+    "bandeau_vert": {"fond": "vert", "texte": "noir"},
+    "texte_rose": {"fond": None, "texte": "rose"},   # rose de la charte, sur fond vert
 }
 POSITIONS = ("bas", "haut", "centre")
 
@@ -61,7 +65,7 @@ def charger_base(data: bytes) -> Image.Image:
 
 
 def incruster(base: Image.Image, texte: str, position: str = "bas", style: str = "bandeau_bleu",
-              taille: float = 1.0, minuscules: bool = True) -> Image.Image:
+              taille: float = 1.0, minuscules: bool = True, align: str = "centre") -> Image.Image:
     """Renvoie une copie de l'image avec le texte incrusté (texte déjà rendu, sans variables)."""
     img = base.copy()
     w, h = img.size
@@ -81,21 +85,29 @@ def incruster(base: Image.Image, texte: str, position: str = "bas", style: str =
         font = _font(font.size - 2)
     pad_v = int(th * 0.55)
     band_h = th + 2 * pad_v
+    marge_v = 0 if st["fond"] else int(h * 0.035)
     if position == "haut":
-        y0 = 0
+        y0 = marge_v
     elif position == "centre":
         y0 = (h - band_h) // 2
     else:
-        y0 = h - band_h
-    tx = (w - tw) // 2 - bbox[0]
+        y0 = h - band_h - marge_v
+    marge_h = int(w * 0.09)   # marge des maquettes (alignée sur les textes en bord)
+    if align == "gauche":
+        tx = marge_h - bbox[0]
+    elif align == "droite":
+        tx = w - marge_h - tw - bbox[0]
+    else:
+        tx = (w - tw) // 2 - bbox[0]
     ty = y0 + pad_v - bbox[1]
     if st["fond"]:
         draw.rectangle([0, y0, w, y0 + band_h], fill=COULEURS[st["fond"]])
     else:
         # ombre douce pour la lisibilité du texte seul
-        ombre = (0, 0, 0) if st["texte"] != "noir" else (255, 255, 255)
-        for dx, dy in ((2, 2), (-2, 2), (2, -2), (-2, -2), (0, 3)):
-            draw.text((tx + dx, ty + dy), texte, font=font, fill=ombre)
+        if st["texte"] in ("blanc", "bleu"):
+            ombre = (0, 0, 0)
+            for dx, dy in ((2, 2), (-2, 2), (2, -2), (-2, -2), (0, 3)):
+                draw.text((tx + dx, ty + dy), texte, font=font, fill=ombre)
     draw.text((tx, ty), texte, font=font, fill=COULEURS[st["texte"]])
     return img
 

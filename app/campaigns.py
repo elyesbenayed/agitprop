@@ -759,11 +759,11 @@ async def _base_bytes(file: UploadFile | None, url: str, db) -> bytes:
 @router.post("/api/visuels/apercu")
 async def visuels_apercu(file: UploadFile | None = File(None), url: str = Form(""), template: str = Form("{departement}"),
                          style: str = Form("bandeau_bleu"), position: str = Form("bas"), taille: float = Form(1.0),
-                         minuscules: bool = Form(True), code: str = Form("75"),
+                         minuscules: bool = Form(True), code: str = Form("75"), align: str = Form("centre"),
                          user: User = Depends(require_admin), db=Depends(get_db)):
     data = await _base_bytes(file, url, db)
     try:
-        out = visuels.apercu(data, template, code, style=style, position=position, taille=taille, minuscules=minuscules)
+        out = visuels.apercu(data, template, code, style=style, position=position, taille=taille, minuscules=minuscules, align=align)
     except Exception as e:
         raise HTTPException(400, f"image illisible : {e}")
     return Response(content=out, media_type="image/jpeg")
@@ -773,7 +773,7 @@ async def visuels_apercu(file: UploadFile | None = File(None), url: str = Form("
 async def visuels_generer(file: UploadFile | None = File(None), url: str = Form(""), title: str = Form("Visuel décliné"),
                           template: str = Form("{departement}"), style: str = Form("bandeau_bleu"),
                           position: str = Form("bas"), taille: float = Form(1.0), minuscules: bool = Form(True),
-                          caption: str = Form(""), tags: str = Form(""), creer_post: bool = Form(True),
+                          align: str = Form("centre"), caption: str = Form(""), tags: str = Form(""), creer_post: bool = Form(True),
                           user: User = Depends(require_admin), db=Depends(get_db)):
     """Génère les 101 versions + zip, enregistre le jeu, et crée un post de banque « variant:<id> »."""
     data = await _base_bytes(file, url, db)
@@ -784,7 +784,7 @@ async def visuels_generer(file: UploadFile | None = File(None), url: str = Form(
     rel, _ = kdrive.save_media(data, (file.filename if file and file.filename else "base.jpg"), prefix=f"base_set{vs.id}_")
     vs.base_path = rel
     try:
-        files = visuels.generer(vs.id, data, template, title, style=style, position=position, taille=taille, minuscules=minuscules)
+        files = visuels.generer(vs.id, data, template, title, style=style, position=position, taille=taille, minuscules=minuscules, align=align)
     except Exception as e:
         db.rollback()
         raise HTTPException(400, f"génération impossible : {e}")
