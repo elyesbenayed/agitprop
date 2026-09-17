@@ -167,7 +167,7 @@ def analyser(rows: list[dict], existants: list[dict] | None = None,
         elif cap.strip():
             add("conseil", "visuels", f"ligne {i} : une story n'affiche pas de légende, le texte sera ignoré.", [i])
         # --- visuels
-        bad = [u for u in urls if not u.lower().startswith("https://")]
+        bad = [u for u in urls if not (u.lower().startswith("https://") or u.startswith("variant:"))]
         if bad:
             add("bloquant", "visuels", f"ligne {i} : visuel non https ({bad[0][:60]}).", [i],
                 "Meta n'accepte que des URL publiques en https.")

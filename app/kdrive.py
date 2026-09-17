@@ -132,3 +132,90 @@ def import_file(file_id: str) -> dict:
     rel, url = save_media(content, name, prefix="kdrive_")
     return {"file_id": str(file_id), "name": name, "mime": mime, "size": len(content),
             "local_path": rel, "url": url}
+
+
+# ====================================================================== ÉCRITURE (gardée)
+# Rien ci-dessous ne s'exécute tant que KDRIVE_ECRITURE=1 n'est pas dans le .env.
+
+UPLOAD_API = "https://api.kdrive.infomaniak.com"
+
+
+def ecriture_autorisee() -> None:
+    if not settings.kdrive_ecriture:
+        raise KDriveError("écriture sur kDrive désactivée (KDRIVE_ECRITURE=0) : l'app ne dépose rien")
+    _headers()
+
+
+def upload_bytes(file_name: str, data: bytes, directory_id: str | None = None,
+                 conflict: str = "rename") -> dict:
+    """Dépose un fichier dans un dossier kDrive (upload direct v3). Renvoie {id, name, size}."""
+    ecriture_autorisee()
+    directory_id = directory_id or settings.kdrive_public_folder_id or settings.kdrive_folder_id or "1"
+    with httpx.Client(timeout=180) as c:
+        r = c.post(f"{UPLOAD_API}/3/drive/{settings.kdrive_drive_id}/upload",
+                   params={"directory_id": directory_id, "total_size": len(data),
+                           "file_name": file_name, "conflict": conflict},
+                   headers={**_headers(), "Content-Type": "application/octet-stream"},
+                   content=data)
+        data_r = _check(r)
+    f = data_r.get("data", data_r)
+    return {"id": str(f.get("id")), "name": f.get("name", file_name), "size": f.get("size", len(data))}
+
+
+def create_public_share(file_id: str) -> dict:
+    """Crée (ou récupère) un lien public sans mot de passe ni expiration pour un fichier."""
+    ecriture_autorisee()
+    base = f"{API}/2/drive/{settings.kdrive_drive_id}/files/{file_id}"
+    with httpx.Client(timeout=30) as c:
+        r = c.get(f"{base}/link", headers=_headers())
+        if r.status_code == 200:
+            d = r.json().get("data") or {}
+            if d.get("url"):
+                return d
+        r = c.post(f"{base}/link", headers=_headers(),
+                   json={"right": "public", "can_download": True})
+        if r.status_code >= 400:
+            # variante d'API : /shares avec type public
+            r = c.post(f"{base}/shares", headers=_headers(),
+                       json={"type": "public", "password_protected": False, "expiration_date": 0})
+        d = _check(r)
+    return d.get("data", d)
+
+
+def candidate_public_urls(share: dict, file_id: str) -> list[str]:
+    """Adresses possibles de téléchargement direct d'un fichier partagé publiquement."""
+    url = share.get("url") or share.get("share_url") or share.get("ShareURL") or ""
+    uuid = share.get("uuid") or share.get("token") or (url.rstrip("/").split("/")[-1] if url else "")
+    d = settings.kdrive_drive_id
+    out = []
+    if uuid:
+        out += [f"https://kdrive.infomaniak.com/2/drive/{d}/share/{uuid}/files/{file_id}/download",
+                f"https://kdrive.infomaniak.com/2/drive/{d}/share/{uuid}/download",
+                f"https://kdrive.infomaniak.com/app/share/{d}/{uuid}/download",
+                f"https://kdrive.infomaniak.com/app/share/{d}/{uuid}/files/{file_id}/download"]
+    if url:
+        out += [url + ("&" if "?" in url else "?") + "download=1", url]
+    return out
+
+
+def verify_public_image(url: str) -> tuple[bool, str]:
+    """Meta-compatible ? GET sans authentification, 200, type image, contenu binaire."""
+    try:
+        with httpx.Client(timeout=30, follow_redirects=True) as c:
+            r = c.get(url, headers={"User-Agent": "facebookexternalhit/1.1"})
+        ct = r.headers.get("content-type", "")
+        ok = r.status_code == 200 and ct.startswith(("image/", "video/")) and len(r.content) > 1000
+        return ok, f"{r.status_code} {ct} {len(r.content)} octets"
+    except Exception as e:
+        return False, str(e)
+
+
+def public_url_for(share: dict, file_id: str) -> tuple[str | None, str]:
+    """Teste les adresses candidates et renvoie la première que Meta pourra lire."""
+    journal = []
+    for u in candidate_public_urls(share, file_id):
+        ok, info = verify_public_image(u)
+        journal.append(f"{u} -> {info}")
+        if ok:
+            return u, "\n".join(journal)
+    return None, "\n".join(journal)

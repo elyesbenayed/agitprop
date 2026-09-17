@@ -75,6 +75,37 @@ la légende peut contenir <code>{departement}</code>, <code>{code}</code>, <code
       <p class="msg" id="up_msg"></p>
     </div>
 
+    <div class="card" id="dec_card">
+      <h2>décliner un visuel en 101 <span class="badge gris">un par département</span></h2>
+      <p class="hint">le nom du département (ou tout autre texte avec <code>{departement}</code>, <code>{code}</code>, <code>{region}</code>) est incrusté sur le visuel, en poppins, aux couleurs de la charte. chaque compte recevra sa version. testez l'aperçu, puis générez.</p>
+      <div class="row">
+        <label class="ghostbtn" for="dec_file" style="padding:.7rem 1.6rem;border-radius:999px;font-weight:800;text-transform:lowercase;cursor:pointer">visuel de base</label>
+        <span class="subhint" id="dec_name">aucun fichier</span>
+        <input id="dec_file" type="file" accept=".jpg,.jpeg,.png,.webp" hidden onchange="document.getElementById('dec_name').textContent = this.files[0] ? this.files[0].name : 'aucun fichier'; decApercu()">
+      </div>
+      <input id="dec_url" placeholder="ou l'url https d'un visuel de la banque" oninput="decApercuDebounce()">
+      <input id="dec_title" placeholder="titre du post (ex. meeting 18 septembre)">
+      <div class="row">
+        <input id="dec_template" value="{departement}" style="flex:2;min-width:160px" oninput="decApercuDebounce()">
+        <select id="dec_style" style="flex:1;min-width:150px" onchange="decApercu()">
+          <option value="bandeau_bleu">bandeau bleu, texte blanc</option><option value="bandeau_noir">bandeau noir, texte blanc</option>
+          <option value="bandeau_blanc">bandeau blanc, texte noir</option><option value="texte_blanc">texte blanc seul</option>
+          <option value="texte_noir">texte noir seul</option><option value="texte_bleu">texte bleu seul</option>
+        </select>
+        <select id="dec_pos" style="flex:1;min-width:100px" onchange="decApercu()"><option value="bas">en bas</option><option value="haut">en haut</option><option value="centre">au centre</option></select>
+        <select id="dec_taille" style="flex:1;min-width:100px" onchange="decApercu()"><option value="0.7">petit</option><option value="1" selected>normal</option><option value="1.4">grand</option></select>
+      </div>
+      <div class="row"><label class="chk"><input type="checkbox" id="dec_min" checked onchange="decApercu()"> tout en minuscules (charte)</label>
+        <select id="dec_code" style="width:auto;margin:0" onchange="decApercu()"><option value="75">aperçu : 75 paris</option><option value="2A">2A corse-du-sud</option><option value="971">971 guadeloupe</option><option value="04">04 alpes-de-haute-provence</option></select></div>
+      <div id="dec_preview" style="margin:.6rem 0"></div>
+      <textarea id="dec_caption" rows="3" placeholder="légende du post (variables acceptées)"></textarea>
+      <input id="dec_tags" placeholder="mots-clés">
+      <div class="row"><button onclick="decGenerer()" id="dec_go">générer les 101 versions</button><span class="msg" id="dec_msg"></span></div>
+      <div id="dec_result"></div>
+      <h3 style="margin-top:1rem">jeux déjà générés</h3>
+      <div id="dec_sets" class="files"></div>
+    </div>
+
     <div class="card">
       <h2>kdrive <span class="badge gris">lecture seule</span></h2>
       <p class="hint" id="kd_etat">…</p>
@@ -219,6 +250,75 @@ async function kdImport(id, name){
     setMsg('kd_msg', true, `✔ importé : post #${a.id}`); await bkLoad(); bkEdit(a.id);
   }catch(e){ setMsg('kd_msg', false, 'erreur : ' + e.message); }
 }
-bkLoad(); kdEtat(); bkPreview();
+/* ---- déclinaisons ---- */
+let DEC_T = null;
+function decForm(extra){
+  const fd = new FormData();
+  const f = document.getElementById('dec_file').files[0];
+  if(f) fd.append('file', f);
+  fd.append('url', document.getElementById('dec_url').value.trim());
+  fd.append('template', document.getElementById('dec_template').value);
+  fd.append('style', document.getElementById('dec_style').value);
+  fd.append('position', document.getElementById('dec_pos').value);
+  fd.append('taille', document.getElementById('dec_taille').value);
+  fd.append('minuscules', document.getElementById('dec_min').checked ? 'true' : 'false');
+  for(const k in (extra || {})) fd.append(k, extra[k]);
+  return fd;
+}
+function decApercuDebounce(){ clearTimeout(DEC_T); DEC_T = setTimeout(decApercu, 500); }
+async function decApercu(){
+  const f = document.getElementById('dec_file').files[0], u = document.getElementById('dec_url').value.trim();
+  if(!f && !u){ document.getElementById('dec_preview').innerHTML = ''; return; }
+  const box = document.getElementById('dec_preview');
+  box.innerHTML = '<span class="subhint">aperçu en cours…</span>';
+  try{
+    const r = await fetch('/api/visuels/apercu', {method:'POST', body: decForm({code: document.getElementById('dec_code').value})});
+    if(!r.ok){ const d = await r.json(); box.innerHTML = `<span class="msg ko">${esc(d.detail)}</span>`; return; }
+    const blob = await r.blob();
+    box.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="aperçu" style="max-width:100%;max-height:420px;border-radius:12px;border:1.5px solid var(--noir)">`;
+  }catch(e){ box.innerHTML = `<span class="msg ko">${esc(e.message)}</span>`; }
+}
+async function decGenerer(){
+  const title = document.getElementById('dec_title').value.trim();
+  if(!title){ setMsg('dec_msg', false, 'donnez un titre.'); return; }
+  const f = document.getElementById('dec_file').files[0], u = document.getElementById('dec_url').value.trim();
+  if(!f && !u){ setMsg('dec_msg', false, 'choisissez un visuel de base.'); return; }
+  document.getElementById('dec_go').disabled = true;
+  setMsg('dec_msg', null, 'génération des 101 versions… (une vingtaine de secondes)');
+  try{
+    const r = await fetch('/api/visuels/generer', {method:'POST', body: decForm({title, caption: document.getElementById('dec_caption').value, tags: document.getElementById('dec_tags').value, creer_post: 'true'})});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || ('erreur ' + r.status));
+    setMsg('dec_msg', true, `✔ ${d.n} versions générées, post de banque #${d.asset_id} créé`);
+    decRender(d); await bkLoad(); decSets();
+  }catch(e){ setMsg('dec_msg', false, 'erreur : ' + e.message); }
+  document.getElementById('dec_go').disabled = false;
+}
+function decRender(d){
+  const pub = d.public_ok ? `<span class="badge bleu">${d.public_ok} adresses publiques vérifiées</span>` : `<span class="badge rouge" title="tant que les images ne sont pas sur une adresse publique, meta ne peut pas les lire">non public</span>`;
+  document.getElementById('dec_result').innerHTML = `<div class="alert conseil" style="align-items:center"><img src="${esc(d.exemple_url)}" alt="" style="width:120px;border-radius:8px">
+    <div class="txt"><b>${esc(d.title)}</b> · jeu #${d.id} · ${d.n} versions ${pub}<div class="sug">dans un post, l'adresse du visuel est <code>${esc(d.media_url)}</code> : l'app choisit l'image du département au moment de l'envoi.</div>
+    <div class="row" style="margin-top:.5rem"><a class="ghostbtn small" style="text-decoration:none;padding:.35rem .8rem;border-radius:999px;font-weight:800;text-transform:lowercase;border:1.5px solid var(--noir);color:var(--noir)" href="${esc(d.zip_url)}">télécharger le zip (101 images)</a>
+      <button class="small" onclick="decKdrive(${d.id})">déposer sur kdrive en public</button></div></div></div>`;
+}
+async function decKdrive(id){
+  if(!confirm('déposer les 101 images dans le dossier kdrive public et créer leurs liens publics ? (écriture sur kdrive)')) return;
+  setMsg('dec_msg', null, 'dépôt sur kdrive… (quelques minutes pour 101 fichiers)');
+  try{
+    const d = await api(`/api/visuels/${id}/kdrive`, {method:'POST'});
+    setMsg('dec_msg', d.ok === d.total, `${d.ok}/${d.total} versions publiques vérifiées` + (d.erreurs.length ? ` — ${d.erreurs.slice(0,3).join(' | ')}` : ''));
+    if(d.journal && d.ok === 0) document.getElementById('dec_result').insertAdjacentHTML('beforeend', `<pre class="subhint" style="white-space:pre-wrap">${esc(d.journal)}</pre>`);
+    decSets();
+  }catch(e){ setMsg('dec_msg', false, 'erreur : ' + e.message); }
+}
+async function decSets(){
+  try{
+    const sets = await api('/api/visuels');
+    document.getElementById('dec_sets').innerHTML = sets.length ? sets.map(s => `<div><img src="${esc(s.exemple_url)}" alt=""><span class="n">${esc(s.title)} <span class="subhint">#${s.id} · ${s.n} versions · ${s.created_at}</span></span>
+      ${s.public_ok ? `<span class="badge bleu">${s.public_ok} publiques</span>` : '<span class="badge gris">local</span>'}
+      <a class="subhint" href="${esc(s.zip_url)}">zip</a> <button class="ghostbtn small" onclick="decKdrive(${s.id})">kdrive</button></div>`).join('') : '<p class="hint">aucun jeu généré.</p>';
+  }catch(e){}
+}
+bkLoad(); kdEtat(); bkPreview(); decSets();
 </script>
 {% endblock %}

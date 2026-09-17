@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from . import instagram_api as ig
 from .database import Account, InsightSnapshot, Post, PostTarget, SessionLocal
-from .departments import render_caption
+from .departments import render_caption, render_media_url
 from .security import decrypt_token, encrypt_token
 
 log = logging.getLogger("igmanager")
@@ -61,7 +61,7 @@ async def process_pending_posts():
                         continue
                     token = decrypt_token(acc.access_token_enc)
                     media_id = await ig.publish_media(
-                        acc.ig_user_id, token, t.post.media_url,
+                        acc.ig_user_id, token, render_media_url(t.post.media_url, acc.department_code),
                         render_caption(t.post.caption, acc.department_code, acc.ig_username), t.post.media_type)
                     acc.posts_today += 1
                 t.status, t.ig_media_id, t.published_at = "published", media_id, now

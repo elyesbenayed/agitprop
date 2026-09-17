@@ -154,15 +154,43 @@ def regions_list():
 
 # ====================================================================== banque de posts
 
+def _asset_public(urls: list[str]) -> bool:
+    if not urls:
+        return False
+    for u in urls:
+        if u.startswith("variant:"):
+            from .database import VariantSet
+            db = SessionLocal()
+            try:
+                vs = db.get(VariantSet, int(u[8:])) if u[8:].isdigit() else None
+                if not vs or (vs.public_ok or 0) < len(vs.variants):
+                    return False
+            finally:
+                db.close()
+        elif not u.lower().startswith("https://"):
+            return False
+    return True
+
+
+def _asset_first_url(urls: list[str]) -> str:
+    if not urls:
+        return ""
+    if urls[0].startswith("variant:"):
+        from .main import db_first_variant
+        v = db_first_variant(urls[0])
+        return f"/static/{v}" if v else ""
+    return urls[0]
+
+
 def _asset_out(a: Asset) -> dict:
     urls = [u.strip() for u in (a.media_url or "").replace("|", "\n").splitlines() if u.strip()]
     return {"id": a.id, "title": a.title, "media_type": a.media_type,
             "type_label": {"IMAGE": "post", "CAROUSEL": "carrousel", "REELS": "reel", "STORIES": "story"}.get(a.media_type, a.media_type),
-            "media_url": a.media_url or "", "urls": urls, "first_url": urls[0] if urls else "",
+            "media_url": a.media_url or "", "urls": urls, "first_url": _asset_first_url(urls),
             "caption": a.caption or "", "tags": [t.strip() for t in (a.tags or "").split(",") if t.strip()],
             "notes": a.notes or "", "source": a.source, "kdrive_name": a.kdrive_name,
             "status": a.status, "used_count": a.used_count or 0,
-            "public": bool(urls) and all(u.lower().startswith("https://") for u in urls),
+            "public": _asset_public(urls),
             "created_at": a.created_at.strftime("%Y-%m-%d") if a.created_at else "",
             "updated_at": a.updated_at.strftime("%Y-%m-%d %H:%M") if a.updated_at else ""}
 
@@ -184,6 +212,8 @@ def _check_asset(body: AssetIn) -> None:
         raise HTTPException(400, "type inconnu")
     urls = [u.strip() for u in body.media_url.replace("|", "\n").splitlines() if u.strip()]
     for u in urls:
+        if u.startswith("variant:"):
+            continue
         if not u.lower().startswith(("http://", "https://")):
             raise HTTPException(400, f"URL non conforme : {u[:60]}")
     if body.media_type == "CAROUSEL" and urls and not 2 <= len(urls) <= 10:
@@ -658,3 +688,155 @@ def campagnes_annuler(cid: int, user: User = Depends(require_admin), db=Depends(
     db.commit()
     audit(db, user.email, "campaign_cancel", f"#{c.id} cibles={n}")
     return {"cancelled": n}
+
+
+# ====================================================================== déclinaisons de visuels
+
+from fastapi import Form  # noqa: E402
+from . import visuels  # noqa: E402
+from .database import Variant, VariantSet  # noqa: E402
+from .config import settings as _settings  # noqa: E402
+
+
+def _vset_out(vs: VariantSet) -> dict:
+    base = _settings.public_base_url.rstrip("/")
+    ex = next((v for v in vs.variants if v.code == "75"), vs.variants[0] if vs.variants else None)
+    return {"id": vs.id, "title": vs.title, "template": vs.template, "style": vs.style, "position": vs.position,
+            "n": len(vs.variants), "public_ok": vs.public_ok or 0,
+            "zip_url": f"/static/{vs.zip_path}" if vs.zip_path else None,
+            "exemple_url": f"/static/{ex.local_path}" if ex else None,
+            "media_url": f"variant:{vs.id}", "kdrive_folder_id": vs.kdrive_folder_id,
+            "public_base": base, "created_at": vs.created_at.strftime("%Y-%m-%d %H:%M") if vs.created_at else ""}
+
+
+async def _base_bytes(file: UploadFile | None, url: str, db) -> bytes:
+    if file is not None and file.filename:
+        data = await file.read()
+        if len(data) > 25 * 1024 * 1024:
+            raise HTTPException(400, "image trop lourde (25 Mo maximum)")
+        return data
+    url = (url or "").strip()
+    if not url:
+        raise HTTPException(400, "fournissez une image (fichier ou URL https)")
+    if url.startswith("/static/"):
+        p = kdrive.MEDIA_DIR.parent / url[len("/static/"):]
+        if not p.exists():
+            raise HTTPException(400, "fichier local introuvable")
+        return p.read_bytes()
+    try:
+        import httpx
+        with httpx.Client(timeout=60, follow_redirects=True) as c:
+            r = c.get(url)
+        if r.status_code != 200:
+            raise HTTPException(400, f"image injoignable ({r.status_code})")
+        return r.content
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, f"image injoignable : {e}")
+
+
+@router.post("/api/visuels/apercu")
+async def visuels_apercu(file: UploadFile | None = File(None), url: str = Form(""), template: str = Form("{departement}"),
+                         style: str = Form("bandeau_bleu"), position: str = Form("bas"), taille: float = Form(1.0),
+                         minuscules: bool = Form(True), code: str = Form("75"),
+                         user: User = Depends(require_admin), db=Depends(get_db)):
+    data = await _base_bytes(file, url, db)
+    try:
+        out = visuels.apercu(data, template, code, style=style, position=position, taille=taille, minuscules=minuscules)
+    except Exception as e:
+        raise HTTPException(400, f"image illisible : {e}")
+    return Response(content=out, media_type="image/jpeg")
+
+
+@router.post("/api/visuels/generer")
+async def visuels_generer(file: UploadFile | None = File(None), url: str = Form(""), title: str = Form("Visuel décliné"),
+                          template: str = Form("{departement}"), style: str = Form("bandeau_bleu"),
+                          position: str = Form("bas"), taille: float = Form(1.0), minuscules: bool = Form(True),
+                          caption: str = Form(""), tags: str = Form(""), creer_post: bool = Form(True),
+                          user: User = Depends(require_admin), db=Depends(get_db)):
+    """Génère les 101 versions + zip, enregistre le jeu, et crée un post de banque « variant:<id> »."""
+    data = await _base_bytes(file, url, db)
+    vs = VariantSet(title=title.strip()[:120] or "Visuel décliné", template=template, style=style, position=position,
+                    slug=visuels._slug(title))
+    db.add(vs)
+    db.flush()
+    rel, _ = kdrive.save_media(data, (file.filename if file and file.filename else "base.jpg"), prefix=f"base_set{vs.id}_")
+    vs.base_path = rel
+    try:
+        files = visuels.generer(vs.id, data, template, title, style=style, position=position, taille=taille, minuscules=minuscules)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(400, f"génération impossible : {e}")
+    for f in files:
+        db.add(Variant(set_id=vs.id, code=f["code"], local_path=f["path"]))
+    vs.zip_path = visuels.zip_path(vs.id, title)
+    asset = None
+    if creer_post:
+        asset = Asset(title=title.strip()[:120], media_type="IMAGE", media_url=f"variant:{vs.id}",
+                      caption=caption, tags=tags, source="variants", status="pret",
+                      notes=f"Visuel décliné par département (jeu #{vs.id}, texte « {template} »).")
+        db.add(asset)
+    db.commit()
+    audit(db, user.email, "variants_generate", f"set={vs.id} {title} n={len(files)}")
+    out = _vset_out(vs)
+    out["asset_id"] = asset.id if asset else None
+    return out
+
+
+@router.get("/api/visuels")
+def visuels_list(user: User = Depends(current_user), db=Depends(get_db)):
+    return [_vset_out(vs) for vs in db.query(VariantSet).order_by(VariantSet.created_at.desc()).all()]
+
+
+@router.get("/api/visuels/{sid}")
+def visuels_get(sid: int, user: User = Depends(current_user), db=Depends(get_db)):
+    vs = db.get(VariantSet, sid)
+    if not vs:
+        raise HTTPException(404, "jeu inconnu")
+    out = _vset_out(vs)
+    out["variants"] = [{"code": v.code, "url": f"/static/{v.local_path}", "public_url": v.public_url,
+                        "kdrive_file_id": v.kdrive_file_id} for v in sorted(vs.variants, key=lambda x: x.code)]
+    return out
+
+
+@router.post("/api/visuels/{sid}/kdrive")
+def visuels_kdrive(sid: int, user: User = Depends(require_admin), db=Depends(get_db)):
+    """Dépose les 101 images sur kDrive (dossier public), crée les liens publics, vérifie que Meta
+    pourra les lire, et enregistre l'adresse directe de chaque version. Nécessite KDRIVE_ECRITURE=1."""
+    vs = db.get(VariantSet, sid)
+    if not vs:
+        raise HTTPException(404, "jeu inconnu")
+    try:
+        kdrive.ecriture_autorisee()
+    except kdrive.KDriveError as e:
+        raise HTTPException(400, str(e))
+    folder = _settings.kdrive_public_folder_id or _settings.kdrive_folder_id or "1"
+    ok, erreurs, journal = 0, [], ""
+    for v in sorted(vs.variants, key=lambda x: x.code):
+        if v.public_url:
+            ok += 1
+            continue
+        try:
+            p = kdrive.MEDIA_DIR.parent / v.local_path
+            if not v.kdrive_file_id:
+                up = kdrive.upload_bytes(p.name, p.read_bytes(), folder)
+                v.kdrive_file_id = up["id"]
+            share = kdrive.create_public_share(v.kdrive_file_id)
+            url, journal = kdrive.public_url_for(share, v.kdrive_file_id)
+            if url:
+                v.public_url = url
+                ok += 1
+            else:
+                erreurs.append(f"{v.code} : lien public créé mais aucune adresse directe lisible")
+            db.commit()
+        except Exception as e:
+            erreurs.append(f"{v.code} : {e}")
+            db.rollback()
+            if len(erreurs) >= 3 and ok == 0:
+                break  # inutile d'insister 101 fois si la config est mauvaise
+    vs.kdrive_folder_id = folder
+    vs.public_ok = ok
+    db.commit()
+    audit(db, user.email, "variants_kdrive", f"set={vs.id} ok={ok} erreurs={len(erreurs)}")
+    return {"ok": ok, "total": len(vs.variants), "erreurs": erreurs[:10], "journal": journal[-1500:]}

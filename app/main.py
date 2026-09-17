@@ -321,6 +321,12 @@ def _check_post(db, user: User, body: PostIn):
         raise HTTPException(400, "L'URL du media est obligatoire")
     for u in body.media_url.replace("|", "\n").splitlines():
         u = u.strip()
+        if u.startswith("variant:"):
+            from .database import VariantSet
+            vs = db.get(VariantSet, int(u[8:])) if u[8:].isdigit() else None
+            if not vs:
+                raise HTTPException(400, f"jeu de declinaisons inconnu : {u}")
+            continue
         if u and not (u.startswith("http://") or u.startswith("https://")):
             raise HTTPException(400, f"URL de media non conforme : {u[:80]}")
     if body.platform not in ("instagram", "facebook", "both"):
@@ -453,6 +459,18 @@ def _read_table(name: str, data: bytes) -> list[dict]:
     raise HTTPException(400, "Format non supporte : utilisez .csv ou .xlsx")
 
 
+def db_first_variant(url: str) -> str | None:
+    from .database import SessionLocal, Variant
+    db = SessionLocal()
+    try:
+        v = db.query(Variant).filter(Variant.set_id == int(url[8:]), Variant.code == "75").first()
+        return v.local_path if v else None
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
 def _serialize_post(p: Post) -> dict:
     counts = {"pending": 0, "published": 0, "failed": 0, "rate_limited": 0, "cancelled": 0}
     for t in p.targets:
@@ -470,6 +488,11 @@ def _serialize_post(p: Post) -> dict:
     else:
         state = "terminé"
     urls = [u.strip() for u in (p.media_url or "").replace("|", "\n").splitlines() if u.strip()]
+    if urls and urls[0].startswith("variant:"):
+        from .database import Variant
+        v = db_first_variant(urls[0])
+        if v:
+            urls[0] = "/static/" + v
     return {"id": p.id, "label": p.label or "", "when": to_paris_iso(p.scheduled_at),
             "created_at": to_paris_iso(p.created_at),
             "media_type": p.media_type, "type_label": _TYPE_LABEL.get(p.media_type, p.media_type),

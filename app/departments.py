@@ -60,6 +60,25 @@ REGION_OF = {code: region for region, codes in REGIONS.items() for code in codes
 assert len(REGION_OF) == 101, "chaque département doit appartenir à une région"
 
 
+def render_media_url(url: str, code: str) -> str:
+    """Une adresse de média peut dépendre du département : « variant:<id> » (jeu de
+    déclinaisons, résolu en base) ou une adresse contenant {code}."""
+    if not url:
+        return url
+    if url.startswith("variant:"):
+        from .database import SessionLocal, Variant
+        from .config import settings
+        db = SessionLocal()
+        try:
+            v = db.query(Variant).filter(Variant.set_id == int(url[8:]), Variant.code == code).first()
+            if not v:
+                return url
+            return v.public_url or f"{settings.public_base_url.rstrip('/')}/static/{v.local_path}"
+        finally:
+            db.close()
+    return url.replace("{code}", code)
+
+
 def render_caption(text: str, code: str, username: str | None = None) -> str:
     """Remplace {departement}, {code}, {compte}, {region} dans une légende."""
     if not text:

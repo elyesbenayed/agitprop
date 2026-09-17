@@ -124,6 +124,34 @@ class AccountGroup(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class VariantSet(Base):
+    """Un visuel décliné en 101 versions départementales."""
+    __tablename__ = "variant_sets"
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    template = Column(String, default="{departement}")   # texte incrusté
+    style = Column(String, default="bandeau_bleu")
+    position = Column(String, default="bas")
+    slug = Column(String, default="visuel")
+    base_path = Column(String, nullable=True)            # visuel de base (relatif static)
+    zip_path = Column(String, nullable=True)
+    kdrive_folder_id = Column(String, nullable=True)     # dossier kDrive de dépôt, si publié
+    public_ok = Column(Integer, default=0)               # nb de versions joignables publiquement
+    created_at = Column(DateTime, default=datetime.utcnow)
+    variants = relationship("Variant", back_populates="vset")
+
+
+class Variant(Base):
+    __tablename__ = "variants"
+    id = Column(Integer, primary_key=True)
+    set_id = Column(Integer, ForeignKey("variant_sets.id"))
+    code = Column(String, nullable=False)                # département
+    local_path = Column(String, nullable=False)          # relatif static
+    kdrive_file_id = Column(String, nullable=True)
+    public_url = Column(Text, nullable=True)             # URL directe joignable par Meta
+    vset = relationship("VariantSet", back_populates="variants")
+
+
 class InsightSnapshot(Base):
     """Photo quotidienne des métriques d'un compte (collecte nocturne)."""
     __tablename__ = "insight_snapshots"
