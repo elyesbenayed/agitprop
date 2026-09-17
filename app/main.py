@@ -15,9 +15,9 @@ from sqlalchemy import func
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import settings
-from .database import (Account, AuditLog, InsightSnapshot, Post, PostTarget,
+from .database import (Account, Asset, AuditLog, InsightSnapshot, Post, PostTarget,
                        SessionLocal, User, get_db, init_db)
-from .departments import DEPARTMENTS
+from .departments import DEPARTMENTS, NAME_OF, REGION_OF
 from . import instagram_api as ig
 from .scheduler import start_scheduler
 from .security import (audit, can_access_account, encrypt_token,
@@ -45,6 +45,8 @@ def startup():
                         password_hash=hash_password(settings.admin_password),
                         role="admin"))
             db.commit()
+        from .campaigns import ensure_region_groups
+        ensure_region_groups(db)
     finally:
         db.close()
     start_scheduler()
@@ -125,7 +127,30 @@ def dashboard(request: Request, db=Depends(get_db)):
     if user.role != "admin":
         accounts = [a for a in accounts if a.department_code == user.department_code]
     return templates.TemplateResponse(request, "dashboard.html",
-                                      {"user": user, "accounts": accounts})
+                                      {"user": user, "accounts": accounts,
+                                       "depts": NAME_OF, "regions": REGION_OF, "page": "dashboard"})
+
+
+def _page(request: Request, db, template: str, page: str):
+    if not request.session.get("user_id"):
+        return RedirectResponse("/login", status_code=303)
+    user = db.get(User, request.session["user_id"])
+    if not user or user.role != "admin":
+        return RedirectResponse("/", status_code=303)
+    accounts = db.query(Account).order_by(Account.department_code).all()
+    return templates.TemplateResponse(request, template,
+                                      {"user": user, "accounts": accounts, "depts": NAME_OF,
+                                       "regions": REGION_OF, "page": page})
+
+
+@app.get("/banque", response_class=HTMLResponse)
+def page_banque(request: Request, db=Depends(get_db)):
+    return _page(request, db, "banque.html", "banque")
+
+
+@app.get("/campagnes", response_class=HTMLResponse)
+def page_campagnes(request: Request, db=Depends(get_db)):
+    return _page(request, db, "campagnes.html", "campagnes")
 
 
 # ---------- Comptes ----------
@@ -274,6 +299,8 @@ class PostIn(BaseModel):
     scheduled_at: datetime | None = None
     targets: list[str] | str = "all"   # "all" ou liste de codes departement
     label: str = ""                    # libellé du plan / de la campagne (optionnel)
+    campaign_id: int | None = None
+    asset_id: int | None = None
 
 
 def _check_post(db, user: User, body: PostIn):
@@ -316,9 +343,14 @@ def _create_post(db, user: User, body: PostIn) -> tuple[Post, int]:
                 media_type=body.media_type, platform=body.platform,
                 scheduled_at=to_utc_naive(body.scheduled_at),
                 label=(body.label or "").strip()[:80],
+                campaign_id=body.campaign_id, asset_id=body.asset_id,
                 created_by=user.id, is_national=(body.targets == "all"))
     db.add(post)
     db.flush()
+    if body.asset_id:
+        a = db.get(Asset, body.asset_id)
+        if a:
+            a.used_count = (a.used_count or 0) + 1
     for acc in accounts:
         for p in platforms:
             db.add(PostTarget(post_id=post.id, account_id=acc.id, platform=p))
@@ -384,7 +416,14 @@ def _parse_targets(value) -> list[str] | str:
         if c.isdigit() and len(c) == 1:
             c = "0" + c
         if c not in known:
-            raise ValueError(f"departement inconnu : {c}")
+            from .campaigns import expand_group_token
+            codes_groupe = expand_group_token(c)
+            if codes_groupe is None:
+                raise ValueError(f"cible inconnue : {c} (code de département, région ou groupe)")
+            for cc in codes_groupe:
+                if cc not in out:
+                    out.append(cc)
+            continue
         if c not in out:
             out.append(c)
     return out
@@ -632,3 +671,8 @@ def deactivate_user(email: str, user: User = Depends(require_admin), db=Depends(
     db.commit()
     audit(db, user.email, "user_deactivate", email)
     return {"ok": True}
+
+
+# ---------- Campagnes, banque de posts, groupes, kDrive (lecture seule) ----------
+from .campaigns import router as campaigns_router  # noqa: E402
+app.include_router(campaigns_router)

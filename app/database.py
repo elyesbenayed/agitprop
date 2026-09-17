@@ -57,6 +57,9 @@ class Post(Base):
     created_by = Column(Integer, ForeignKey("users.id"))
     is_national = Column(Boolean, default=False)      # post coordonné national
     label = Column(String, default="")                # libellé du plan / de la campagne
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=True)   # post de la banque utilisé
+    campaign = relationship("Campaign", back_populates="posts")
     created_at = Column(DateTime, default=datetime.utcnow)
     targets = relationship("PostTarget", back_populates="post")
 
@@ -74,6 +77,51 @@ class PostTarget(Base):
     published_at = Column(DateTime, nullable=True)
     post = relationship("Post", back_populates="targets")
     account = relationship("Account")
+
+
+class Campaign(Base):
+    """Une campagne = un ensemble d'envois planifiés autour d'un objectif et de dates."""
+    __tablename__ = "campaigns"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    objective = Column(Text, default="")             # objectif, message clé, audiences
+    start_date = Column(String, default="")          # "2026-09-18"
+    end_date = Column(String, default="")
+    status = Column(String, default="brouillon")     # brouillon | active | terminee
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    posts = relationship("Post", back_populates="campaign")
+
+
+class Asset(Base):
+    """Banque de posts : un visuel (ou plusieurs) + une légende prête à l'emploi."""
+    __tablename__ = "assets"
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    media_type = Column(String, default="IMAGE")     # IMAGE | CAROUSEL | REELS | STORIES
+    media_url = Column(Text, default="")             # URL(s) publiques, une par ligne
+    caption = Column(Text, default="")               # peut contenir {departement} {code} {compte} {region}
+    tags = Column(String, default="")                # mots-clés séparés par des virgules
+    notes = Column(Text, default="")
+    source = Column(String, default="url")           # url | kdrive | upload
+    kdrive_file_id = Column(String, nullable=True)
+    kdrive_name = Column(String, nullable=True)
+    local_path = Column(String, nullable=True)       # chemin relatif sous static/ si stocké localement
+    status = Column(String, default="pret")          # pret | brouillon | archive
+    used_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AccountGroup(Base):
+    """Groupe de comptes : région prédéfinie ou sélection libre de départements."""
+    __tablename__ = "account_groups"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    codes = Column(Text, default="")                 # codes séparés par des virgules
+    kind = Column(String, default="custom")          # region | custom
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class InsightSnapshot(Base):
@@ -112,6 +160,8 @@ def init_db():
             "ALTER TABLE posts ADD COLUMN platform VARCHAR DEFAULT 'instagram'",
             "ALTER TABLE post_targets ADD COLUMN platform VARCHAR DEFAULT 'instagram'",
             "ALTER TABLE posts ADD COLUMN label VARCHAR DEFAULT ''",
+            "ALTER TABLE posts ADD COLUMN campaign_id INTEGER",
+            "ALTER TABLE posts ADD COLUMN asset_id INTEGER",
         ):
             try:
                 conn.execute(text(stmt))

@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     meta_api: str = "auto"  # auto | instagram | facebook
     fernet_key: str = ""
     session_secret: str = "dev-secret"
+    # Banque de posts / kDrive (Infomaniak) : token API avec le périmètre « drive »
+    kdrive_token: str = ""
+    kdrive_drive_id: str = ""
+    kdrive_folder_id: str = "1"          # 1 = racine du kDrive
+    # Adresse publique de l'app : sert à construire les URL des médias stockés localement
+    public_base_url: str = "http://localhost:8000"
     https_only: bool = False  # HTTPS_ONLY=1 en production : cookie de session "Secure"
     database_url: str = "sqlite:///./igmanager.db"
     admin_email: str = "admin@parti.fr"

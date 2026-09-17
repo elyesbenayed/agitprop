@@ -86,3 +86,27 @@ admin défini dans `.env` est généré. Dashboard sur http://localhost:8000.
 En production : HTTPS obligatoire (`https_only=True` dans main.py), PostgreSQL,
 reverse proxy (nginx/caddy), sauvegardes chiffrées de la base, MFA sur les
 comptes Instagram eux-mêmes (voir protocole de sécurité joint).
+
+## Campagnes, banque de posts, conseils (ajout du 17 septembre 2026)
+
+Trois pages, accessibles à l'équipe nationale par la barre de navigation :
+
+- **Banque de posts** (`/banque`) : chaque post = visuel(s) + légende prête + mots-clés. La légende accepte
+  `{departement}`, `{code}`, `{compte}`, `{region}` : chaque compte reçoit sa version au moment de l'envoi.
+  Sources : URL publique, dépôt depuis l'ordinateur (copié sous `static/media/`, servi via `PUBLIC_BASE_URL`),
+  ou **kDrive en lecture seule** (`KDRIVE_TOKEN`, `KDRIVE_DRIVE_ID`, `KDRIVE_FOLDER_ID`) : lister, vignettes,
+  copier un fichier dans la banque. Rien n'est jamais écrit sur kDrive.
+- **Campagnes** (`/campagnes`) : construire un plan (posts de la banque × cibles × horaires × échelonnement),
+  générer la liste exacte des envois, lire les **conseils** (score sur 100, points bloquants, attention, conseils,
+  avec actions applicables), ajuster, programmer. Puis calendrier heure par heure, couverture des 101 départements,
+  export CSV ré-importable, décalage global, annulation.
+- **Groupes de comptes** : 14 régions prédéfinies + groupes libres, utilisables partout comme cible
+  (`Bretagne`, `groupe:littoral`, `75, 13, Occitanie`).
+
+Les règles de conseil sont dans `app/insights.py` (créneaux à forte audience, nuit, espacement, volume, rafale
+nationale, formats, légende, visuels, rythme, doublons). Elles ne déclenchent jamais d'action seules.
+
+API principale : `GET/POST /api/banque`, `GET/POST /api/groupes`, `GET/POST /api/campagnes`,
+`POST /api/campagnes/{id}/generer` (intentions → envois + conseils), `POST …/analyser`, `POST …/programmer`,
+`GET …/insights`, `GET …/couverture`, `GET …/export.csv`, `POST …/decaler`, `POST …/annuler`,
+`GET /api/kdrive/etat|fichiers`, `POST /api/kdrive/importer/{file_id}`.

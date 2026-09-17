@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}banque de posts{% endblock %}
+{% block content %}
+<h1>banque de posts</h1>
+<p class="hint">un post de la banque = un ou plusieurs visuels, une légende prête, des mots-clés. les campagnes piochent dedans.
+la légende peut contenir <code>{departement}</code>, <code>{code}</code>, <code>{compte}</code> et <code>{region}</code> : chaque compte reçoit sa version.</p>
+
+<div class="cols">
+  <div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">les posts <span id="bk_count" class="badge gris"></span></h2>
+        <button class="small" onclick="bkNew()">nouveau post</button>
+      </div>
+      <div class="row" style="margin:.6rem 0">
+        <input id="bk_q" placeholder="rechercher (titre, légende, mot-clé)" style="flex:2;min-width:160px" oninput="bkLoad()">
+        <select id="bk_type" style="flex:1;min-width:120px" onchange="bkLoad()">
+          <option value="">tous formats</option><option value="IMAGE">post</option><option value="CAROUSEL">carrousel</option>
+          <option value="REELS">reel</option><option value="STORIES">story</option>
+        </select>
+        <select id="bk_statut" style="flex:1;min-width:120px" onchange="bkLoad()">
+          <option value="">prêts + brouillons</option><option value="pret">prêts</option><option value="brouillon">brouillons</option><option value="archive">archivés</option>
+        </select>
+      </div>
+      <div id="bk_tags" class="row" style="margin-bottom:.6rem"></div>
+      <div id="bk_list" class="assets"></div>
+      <p class="msg" id="bk_msg"></p>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" id="bk_form_card">
+      <h2 id="bk_form_title">nouveau post</h2>
+      <input type="hidden" id="f_id">
+      <label class="lbl">titre</label>
+      <input id="f_title" placeholder="ex. visuel meeting 18 sept.">
+      <label class="lbl">format</label>
+      <select id="f_type">
+        <option value="IMAGE">post (une image)</option><option value="CAROUSEL">carrousel (2 à 10 images)</option>
+        <option value="REELS">reel (une vidéo)</option><option value="STORIES">story</option>
+      </select>
+      <label class="lbl">visuel(s) : url publique https, une par ligne</label>
+      <textarea id="f_url" rows="2" placeholder="https://…/visuel.jpg" oninput="bkPreview()"></textarea>
+      <div id="f_thumbs" class="row"></div>
+      <label class="lbl">légende</label>
+      <textarea id="f_caption" rows="5" placeholder="Bonjour {departement} ! … #LaFranceHumaniste" oninput="bkPreview()"></textarea>
+      <p class="hint" id="f_capinfo"></p>
+      <label class="lbl">mots-clés (séparés par des virgules)</label>
+      <input id="f_tags" placeholder="meeting, national, teaser">
+      <label class="lbl">notes internes</label>
+      <textarea id="f_notes" rows="2" placeholder="contexte, validation, droits du visuel…"></textarea>
+      <label class="lbl">statut</label>
+      <select id="f_status"><option value="pret">prêt à l'emploi</option><option value="brouillon">brouillon</option><option value="archive">archivé</option></select>
+      <div class="row" style="margin-top:.8rem">
+        <button onclick="bkSave()">enregistrer</button>
+        <button class="ghostbtn" id="f_dup" onclick="bkDuplicate()" style="display:none">dupliquer</button>
+        <button class="ghostbtn" id="f_arch" onclick="bkArchive()" style="display:none">archiver</button>
+        <button class="danger small" id="f_del" onclick="bkDelete()" style="display:none">supprimer définitivement</button>
+      </div>
+      <p class="msg" id="f_msg"></p>
+    </div>
+
+    <div class="card">
+      <h2>déposer un visuel depuis l'ordinateur</h2>
+      <p class="hint">le fichier est copié dans le dossier <code>static/media</code> de l'app et servi à l'adresse publique de l'app.
+      <span id="up_warn"></span></p>
+      <div class="row">
+        <label class="ghostbtn" for="up_file" style="padding:.7rem 1.6rem;border-radius:999px;font-weight:800;text-transform:lowercase;cursor:pointer">choisir un fichier</label>
+        <span class="subhint" id="up_name">aucun fichier choisi</span>
+        <input id="up_file" type="file" accept=".jpg,.jpeg,.png,.webp,.mp4,.mov" hidden onchange="document.getElementById('up_name').textContent = this.files[0] ? this.files[0].name : 'aucun fichier choisi'">
+      </div>
+      <input id="up_title" placeholder="titre (optionnel, sinon le nom du fichier)">
+      <div class="row"><select id="up_type" style="flex:1"><option value="IMAGE">post</option><option value="STORIES">story</option><option value="REELS">reel</option></select>
+        <button onclick="bkUpload()">déposer dans la banque</button></div>
+      <p class="msg" id="up_msg"></p>
+    </div>
+
+    <div class="card">
+      <h2>kdrive <span class="badge gris">lecture seule</span></h2>
+      <p class="hint" id="kd_etat">…</p>
+      <div class="row">
+        <button class="ghostbtn" onclick="kdList('')">lister le dossier</button>
+        <button class="ghostbtn small" id="kd_back" onclick="kdBack()" style="display:none">dossier parent</button>
+        <span class="subhint" id="kd_path"></span>
+      </div>
+      <div id="kd_files" class="files" style="margin-top:.6rem"></div>
+      <p class="msg" id="kd_msg"></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let BANK = [], EDIT = null, KD_STACK = [];
+function bkNew(){
+  EDIT = null;
+  document.getElementById('bk_form_title').textContent = 'nouveau post';
+  for(const id of ['f_id','f_title','f_url','f_caption','f_tags','f_notes']) document.getElementById(id).value = '';
+  document.getElementById('f_type').value = 'IMAGE'; document.getElementById('f_status').value = 'pret';
+  for(const id of ['f_dup','f_arch','f_del']) document.getElementById(id).style.display = 'none';
+  bkPreview(); setMsg('f_msg', null, '');
+  document.querySelectorAll('.asset.selected').forEach(e => e.classList.remove('selected'));
+  document.getElementById('bk_form_card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function bkEdit(id){
+  const a = BANK.find(x => x.id === id); if(!a) return;
+  EDIT = a;
+  document.getElementById('bk_form_title').textContent = `post #${a.id}`;
+  document.getElementById('f_id').value = a.id; document.getElementById('f_title').value = a.title;
+  document.getElementById('f_type').value = a.media_type; document.getElementById('f_url').value = a.urls.join('\n');
+  document.getElementById('f_caption').value = a.caption; document.getElementById('f_tags').value = a.tags.join(', ');
+  document.getElementById('f_notes').value = a.notes; document.getElementById('f_status').value = a.status;
+  for(const id of ['f_dup','f_arch','f_del']) document.getElementById(id).style.display = '';
+  bkPreview(); setMsg('f_msg', null, '');
+  document.querySelectorAll('.asset').forEach(e => e.classList.toggle('selected', +e.dataset.id === id));
+  document.getElementById('bk_form_card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function bkPreview(){
+  const urls = document.getElementById('f_url').value.split(/\n|\|/).map(s => s.trim()).filter(Boolean);
+  document.getElementById('f_thumbs').innerHTML = urls.slice(0, 10).map(u => `<img src="${esc(u)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;background:var(--gris-fond)" onerror="this.style.opacity=.3">`).join('');
+  const cap = document.getElementById('f_caption').value;
+  const info = [];
+  info.push(`${cap.length} caractères`);
+  if(cap.length > 125) info.push(`les 125 premiers : « ${esc(cap.slice(0,125))}… »`);
+  const n = (cap.match(/#/g) || []).length; info.push(`${n} hashtag(s)`);
+  if(/\{(d[ée]partement|code|compte|r[ée]gion)\}/.test(cap)) info.push(`personnalisé · exemple 75 : « ${esc(renderCaption(cap, '75').slice(0, 140))} »`);
+  const badU = urls.filter(u => !/^https:\/\//i.test(u));
+  if(badU.length) info.push(`<b style="color:var(--rouge)">${badU.length} url non https : meta refusera</b>`);
+  document.getElementById('f_capinfo').innerHTML = info.join(' · ');
+}
+function bkPayload(){
+  return {title: document.getElementById('f_title').value, media_type: document.getElementById('f_type').value,
+          media_url: document.getElementById('f_url').value, caption: document.getElementById('f_caption').value,
+          tags: document.getElementById('f_tags').value, notes: document.getElementById('f_notes').value,
+          status: document.getElementById('f_status').value};
+}
+async function bkSave(){
+  try{
+    const body = JSON.stringify(bkPayload());
+    const a = EDIT ? await api(`/api/banque/${EDIT.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body})
+                   : await api('/api/banque', {method:'POST', headers:{'Content-Type':'application/json'}, body});
+    setMsg('f_msg', true, `✔ post #${a.id} enregistré`);
+    await bkLoad(); bkEdit(a.id);
+  }catch(e){ setMsg('f_msg', false, 'erreur : ' + e.message); }
+}
+async function bkDuplicate(){ if(!EDIT) return; try{ const a = await api(`/api/banque/${EDIT.id}/dupliquer`, {method:'POST'}); await bkLoad(); bkEdit(a.id); setMsg('f_msg', true, `✔ copie créée : #${a.id}`); }catch(e){ setMsg('f_msg', false, e.message); } }
+async function bkArchive(){ if(!EDIT) return; try{ await api(`/api/banque/${EDIT.id}`, {method:'DELETE'}); setMsg('f_msg', true, 'archivé'); await bkLoad(); bkNew(); }catch(e){ setMsg('f_msg', false, e.message); } }
+async function bkDelete(){ if(!EDIT || !confirm(`supprimer définitivement le post #${EDIT.id} ?`)) return; try{ await api(`/api/banque/${EDIT.id}?definitif=true`, {method:'DELETE'}); await bkLoad(); bkNew(); setMsg('bk_msg', true, 'supprimé'); }catch(e){ setMsg('f_msg', false, e.message); } }
+async function bkLoad(){
+  const q = encodeURIComponent(document.getElementById('bk_q').value.trim());
+  const t = document.getElementById('bk_type').value, s = document.getElementById('bk_statut').value;
+  const tag = (window.BK_TAG || '');
+  try{
+    const d = await api(`/api/banque?q=${q}&type=${t}&statut=${s}&tag=${encodeURIComponent(tag)}`);
+    BANK = d.items;
+    document.getElementById('bk_count').textContent = `${d.items.length} / ${d.total}`;
+    document.getElementById('bk_tags').innerHTML = d.tags.map(x => `<span class="badge ${x === tag ? 'bleu' : ''}" style="cursor:pointer" onclick="window.BK_TAG = (window.BK_TAG === '${esc(x)}' ? '' : '${esc(x)}'); bkLoad()">${esc(x)}</span>`).join('');
+    document.getElementById('bk_list').innerHTML = d.items.length ? d.items.map(a => `
+      <div class="asset ${EDIT && EDIT.id === a.id ? 'selected' : ''}" data-id="${a.id}" onclick="bkEdit(${a.id})">
+        <div class="thumb">${a.first_url ? `<img src="${esc(a.first_url)}" alt="" loading="lazy" onerror="this.parentNode.textContent='visuel injoignable'">` : 'sans visuel'}</div>
+        <div class="body"><b>${esc(a.title)}</b>
+          <div class="cap">${esc(a.caption) || '<i>sans légende</i>'}</div>
+          <div class="foot"><span class="badge">${a.type_label}${a.urls.length > 1 ? ' ' + a.urls.length : ''}</span>
+            ${a.status !== 'pret' ? `<span class="badge gris">${a.status}</span>` : ''}
+            ${a.source !== 'url' ? `<span class="badge gris">${a.source}</span>` : ''}
+            ${!a.public ? '<span class="badge rouge" title="url non https : meta ne pourra pas la lire">non public</span>' : ''}
+            ${a.used_count ? `<span class="badge gris">utilisé ${a.used_count}×</span>` : ''}
+            ${a.tags.slice(0,3).map(t => `<span class="badge gris">${esc(t)}</span>`).join('')}</div></div></div>`).join('')
+      : '<p class="hint">la banque est vide. créez un post avec le formulaire, déposez un visuel, ou importez depuis kdrive.</p>';
+  }catch(e){ setMsg('bk_msg', false, e.message); }
+}
+async function bkUpload(){
+  const f = document.getElementById('up_file').files[0];
+  if(!f){ setMsg('up_msg', false, 'choisissez un fichier.'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  const t = document.getElementById('up_title').value.trim();
+  setMsg('up_msg', null, 'dépôt…');
+  try{
+    const a = await api(`/api/banque/upload?title=${encodeURIComponent(t)}&media_type=${document.getElementById('up_type').value}`, {method:'POST', body: fd});
+    setMsg('up_msg', true, `✔ déposé : post #${a.id}`); await bkLoad(); bkEdit(a.id);
+  }catch(e){ setMsg('up_msg', false, 'erreur : ' + e.message); }
+}
+async function kdEtat(){
+  try{
+    const e = await api('/api/kdrive/etat');
+    document.getElementById('kd_etat').innerHTML = e.configure
+      ? `connecté au kdrive <b>${esc(e.drive_id)}</b>, dossier <b>${esc(e.dossier)}</b>. l'app ne fait que lire : lister, afficher les vignettes, copier un visuel dans la banque. rien n'est écrit sur kdrive.`
+      : `non configuré : renseignez <code>KDRIVE_TOKEN</code> et <code>KDRIVE_DRIVE_ID</code> dans le <code>.env</code> (token api infomaniak, périmètre « drive »), puis relancez l'app. lecture seule, rien n'est jamais écrit sur kdrive.`;
+    const w = e.url_publique ? '' : `<b style="color:var(--rouge)">adresse publique de l'app = ${esc(e.public_base_url)} : meta ne pourra pas lire ces médias tant que l'app n'est pas hébergée (PUBLIC_BASE_URL).</b>`;
+    document.getElementById('up_warn').innerHTML = w;
+  }catch(e){ document.getElementById('kd_etat').textContent = e.message; }
+}
+async function kdList(dossier, push = true){
+  setMsg('kd_msg', null, 'lecture du dossier…');
+  try{
+    const d = await api(`/api/kdrive/fichiers?dossier=${encodeURIComponent(dossier)}`);
+    if(push && dossier) KD_STACK.push(dossier);
+    if(!dossier) KD_STACK = [];
+    document.getElementById('kd_back').style.display = KD_STACK.length ? '' : 'none';
+    document.getElementById('kd_path').textContent = 'dossier ' + d.dossier;
+    document.getElementById('kd_files').innerHTML = d.fichiers.length ? d.fichiers.map(f => `
+      <div>${f.type === 'dir' ? '<span class="badge noir">dossier</span>' : (f.utilisable ? `<img src="/api/kdrive/vignette/${esc(f.id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="badge gris">—</span>')}
+        <span class="n" title="${esc(f.name)}">${esc(f.name)}</span>
+        <span class="subhint">${f.size ? Math.round(f.size/1024) + ' ko' : ''}</span>
+        ${f.type === 'dir' ? `<button class="ghostbtn small" onclick="kdList('${esc(f.id)}')">ouvrir</button>` :
+          (f.utilisable ? `<button class="small" onclick="kdImport('${esc(f.id)}', '${esc(f.name)}')">importer dans la banque</button>` : '<span class="subhint">format non pris en charge</span>')}
+      </div>`).join('') : '<p class="hint">dossier vide.</p>';
+    setMsg('kd_msg', null, '');
+  }catch(e){ setMsg('kd_msg', false, e.message); }
+}
+function kdBack(){ KD_STACK.pop(); const d = KD_STACK[KD_STACK.length - 1] || ''; kdList(d, false); }
+async function kdImport(id, name){
+  const title = prompt('titre du post dans la banque :', name.replace(/\.[a-z0-9]+$/i, ''));
+  if(title === null) return;
+  setMsg('kd_msg', null, 'copie depuis kdrive…');
+  try{
+    const a = await api(`/api/kdrive/importer/${encodeURIComponent(id)}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title})});
+    setMsg('kd_msg', true, `✔ importé : post #${a.id}`); await bkLoad(); bkEdit(a.id);
+  }catch(e){ setMsg('kd_msg', false, 'erreur : ' + e.message); }
+}
+bkLoad(); kdEtat(); bkPreview();
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agitprop — {% block title %}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;0,600;0,800;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/agitprop.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<header>
+  <img class="logo" src="/static/Logo-LFH-black.svg" alt="La France Humaniste">
+  <div class="who">
+    {{ user.email }}<br>
+    {{ "équipe nationale" if user.role == "admin" else "département " + (user.department_code or "?") }}
+    · <a href="/logout">déconnexion</a>
+  </div>
+</header>
+<nav class="main">
+  <a href="/" class="{{ 'active' if page == 'dashboard' else '' }}">tableau de bord</a>
+  <a href="/campagnes" class="{{ 'active' if page == 'campagnes' else '' }}">campagnes</a>
+  <a href="/banque" class="{{ 'active' if page == 'banque' else '' }}">banque de posts</a>
+</nav>
+{% block content %}{% endblock %}
+<script>
+const DEPTS = {{ depts|tojson }};
+const REGION = {{ regions|tojson }};
+const ACCOUNTS = { {% for a in accounts %}"{{ a.department_code }}": {"u": "{{ a.ig_username or '' }}", "s": "{{ a.status }}"},{% endfor %} };
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function setMsg(id, ok, text){ const el = document.getElementById(id); if(!el) return; el.textContent = text || ''; el.className = 'msg' + (ok === true ? ' ok' : ok === false ? ' ko' : ''); }
+function fmtWhen(iso){ if(!iso) return 'immédiat'; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('fr-FR', {weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); }
+function renderCaption(cap, code){ const u = (ACCOUNTS[code] && ACCOUNTS[code].u) ? '@' + ACCOUNTS[code].u : ''; return (cap || '').replace(/\{d[ée]partement\}/g, DEPTS[code] || code).replace(/\{code\}/g, code).replace(/\{compte\}/g, u).replace(/\{r[ée]gion\}/g, REGION[code] || ''); }
+async function api(url, opts){ const r = await fetch(url, opts); let d = null; try { d = await r.json(); } catch(e) {} if(!r.ok){ throw new Error((d && d.detail) ? (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail)) : ('erreur ' + r.status)); } return d; }
+const TYPE_LABEL = {IMAGE:'post', CAROUSEL:'carrousel', REELS:'reel', STORIES:'story'};
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

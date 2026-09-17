@@ -72,6 +72,11 @@
   .pt:disabled,.pt:disabled:hover{background:#fff;color:var(--gris-texte);border-color:var(--gris);
       cursor:not-allowed;opacity:.7}
   .linktoggle{display:flex;gap:.5rem;margin:.4rem 0 .2rem}
+  nav.main{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.4rem}
+  nav.main a{padding:.45rem 1.1rem;border-radius:999px;border:1.5px solid var(--noir);color:var(--noir);
+             font-weight:800;text-transform:lowercase;text-decoration:none;font-size:.85rem}
+  nav.main a.active{background:var(--noir);color:#fff}
+  nav.main a:hover{background:var(--bleu);border-color:var(--bleu);color:#fff}
   /* ---- planification ---- */
   .planbar{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin:1.3rem 0 .6rem}
   .chk{font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:.4rem;cursor:pointer}
@@ -247,6 +252,13 @@
     · <a href="/logout">déconnexion</a>
   </div>
 </header>
+{% if user.role == "admin" %}
+<nav class="main">
+  <a href="/" class="active">tableau de bord</a>
+  <a href="/campagnes">campagnes</a>
+  <a href="/banque">banque de posts</a>
+</nav>
+{% endif %}
 
 <div class="card">
   <h2>statistiques nationales</h2>
@@ -261,7 +273,7 @@
   <h2>nouveau post {{ "(national ou ciblé)" if user.role == "admin" else "" }}</h2>
   <textarea id="media_url" rows="2"
     placeholder="url(s) publique(s) https://… — un post avec plusieurs urls (une par ligne) devient automatiquement un carrousel"></textarea>
-  <textarea id="caption" rows="3" placeholder="légende du post (optionnelle)…"></textarea>
+  <textarea id="caption" rows="3" placeholder="légende du post (optionnelle)… variables : {departement} {code} {compte} {region}"></textarea>
   <select id="media_type">
     <option value="IMAGE">post</option>
     <option value="REELS">reel</option>
@@ -409,6 +421,13 @@
 
 <script>
 const ACCOUNTS = { {% for a in accounts %}"{{ a.department_code }}": "{{ a.ig_username or '' }}",{% endfor %} };
+const DEPTS = {{ depts|tojson }};
+const REGION = {{ regions|tojson }};
+function renderCaption(cap, code){
+  const u = ACCOUNTS[code] ? '@' + ACCOUNTS[code] : '';
+  return (cap || '').replace(/\{d[ée]partement\}/g, DEPTS[code] || code).replace(/\{code\}/g, code)
+                    .replace(/\{compte\}/g, u).replace(/\{r[ée]gion\}/g, REGION[code] || '');
+}
 async function loadStats(){
   const r = await fetch('/api/stats/overview');
   if(!r.ok) return;
@@ -981,7 +1000,9 @@ function renderPreview(){
   document.getElementById('pt-ig').classList.toggle('active', show === 'instagram');
   document.getElementById('pt-fb').classList.toggle('active', show === 'facebook');
   const urls = getUrls();
-  const cap = document.getElementById('caption').value;
+  const capRaw = document.getElementById('caption').value;
+  const tg = previewTargets();
+  const cap = (tg !== 'all' && tg.length === 1) ? renderCaption(capRaw, tg[0]) : renderCaption(capRaw, '75').replace('Paris', '{departement}');
   const type = effType(document.getElementById('media_type').value, urls);
   const box = document.getElementById('preview');
   document.getElementById('prevmeta').textContent = previewMeta(urls, type);

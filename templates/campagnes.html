@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}campagnes{% endblock %}
+{% block content %}
+<h1>campagnes</h1>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <h2 style="margin:0">vos campagnes</h2>
+    <button class="small ghostbtn" onclick="document.getElementById('c_new').style.display = document.getElementById('c_new').style.display === 'none' ? '' : 'none'">nouvelle campagne</button>
+  </div>
+  <div id="c_new" style="display:none;margin-top:.6rem">
+    <div class="row"><input id="n_name" placeholder="nom (ex. séquence médiatique 18 septembre)" style="flex:2;min-width:220px">
+      <input id="n_start" type="date" style="flex:1"><input id="n_end" type="date" style="flex:1"></div>
+    <textarea id="n_obj" rows="2" placeholder="objectif, message clé, audiences (facultatif)"></textarea>
+    <div class="row"><button onclick="cCreate()">créer</button><span class="msg" id="n_msg"></span></div>
+  </div>
+  <div id="c_list" class="assets" style="margin-top:.8rem"></div>
+</div>
+
+<div class="card" id="ws" style="display:none">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <h2 style="margin:0" id="ws_name"></h2>
+      <div class="subhint" id="ws_sub"></div>
+    </div>
+    <div class="row">
+      <select id="ws_status" style="width:auto;margin:0" onchange="cStatus()"><option value="brouillon">brouillon</option><option value="active">active</option><option value="terminee">terminée</option></select>
+      <a id="ws_export" class="ghostbtn small" style="padding:.45rem .9rem;border-radius:999px;text-decoration:none;font-weight:800;text-transform:lowercase;border:1.5px solid var(--noir);color:var(--noir)">exporter csv</a>
+      <button class="ghostbtn small" onclick="cShift()">décaler tout</button>
+      <button class="danger small" onclick="cCancelAll()">annuler tout</button>
+    </div>
+  </div>
+  <p class="msg" id="ws_msg"></p>
+  <div class="tabs" style="margin-top:.8rem">
+    <span class="tab active" data-t="construire" onclick="tab('construire')">construire</span>
+    <span class="tab" data-t="calendrier" onclick="tab('calendrier')">calendrier</span>
+    <span class="tab" data-t="conseils" onclick="tab('conseils')">conseils</span>
+    <span class="tab" data-t="couverture" onclick="tab('couverture')">couverture</span>
+    <span class="tab" data-t="groupes" onclick="tab('groupes')">groupes de comptes</span>
+  </div>
+
+  <!-- ===== construire ===== -->
+  <div class="panel active" id="p_construire">
+    <p class="hint">1. choisissez des posts dans la banque · 2. dites pour chacun <b>qui</b> (comptes, groupes, régions), <b>quand</b>, et s'il faut <b>échelonner</b> · 3. générez : l'app produit la liste exacte des envois et ses conseils · 4. ajustez, puis programmez. rien ne part avant « programmer ».</p>
+    <div class="cols">
+      <div>
+        <h3>banque de posts <span class="subhint">cliquer pour ajouter</span></h3>
+        <input id="b_q" placeholder="filtrer la banque" oninput="bankRender()">
+        <div id="b_list" class="assets" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))"></div>
+      </div>
+      <div>
+        <h3>intentions <span class="subhint" id="i_count"></span></h3>
+        <div id="i_list"></div>
+        <div class="row" style="margin-top:.8rem">
+          <button onclick="generate()" id="gen_btn" disabled>générer le plan</button>
+          <label class="chk"><input type="checkbox" id="only_active" checked> seulement les comptes déjà liés</label>
+        </div>
+      </div>
+    </div>
+    <div id="gen_out" style="display:none;margin-top:1.2rem">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">envois générés <span class="subhint" id="g_count"></span></h3>
+        <div class="row"><button class="ghostbtn small" onclick="reanalyse()">ré-analyser</button>
+          <button id="prog_btn" onclick="programmer()">programmer</button></div>
+      </div>
+      <p class="subhint" id="g_exclus"></p>
+      <div class="planwrap" id="g_table"></div>
+      <div id="g_ins" style="margin-top:1rem"></div>
+      <p class="msg" id="g_msg"></p>
+    </div>
+  </div>
+
+  <!-- ===== calendrier ===== -->
+  <div class="panel" id="p_calendrier">
+    <div class="row" style="justify-content:space-between"><p class="hint" style="margin:0">un chip = un envoi (format · nombre de comptes). les colonnes bleutées sont les créneaux à forte audience. cliquer un chip ouvre le détail par compte.</p>
+      <button class="ghostbtn small" onclick="loadCal()">actualiser</button></div>
+    <div id="cal"></div>
+    <h3>envois immédiats et terminés</h3>
+    <div class="planwrap" id="cal_list"></div>
+  </div>
+
+  <!-- ===== conseils ===== -->
+  <div class="panel" id="p_conseils">
+    <div class="row" style="justify-content:space-between"><p class="hint" style="margin:0">analyse des envois encore à venir de cette campagne, au regard des règles ci-dessous et des autres campagnes programmées. ce sont des propositions : vous décidez.</p>
+      <button class="ghostbtn small" onclick="loadIns()">actualiser</button></div>
+    <div id="ins"></div>
+    <h3>les règles utilisées</h3>
+    <div id="regles"></div>
+  </div>
+
+  <!-- ===== couverture ===== -->
+  <div class="panel" id="p_couverture">
+    <div class="row" style="justify-content:space-between"><p class="hint" style="margin:0">nombre d'envois prévus par département dans cette campagne. en pointillé : aucun envoi ; grisé : compte pas encore lié.</p>
+      <button class="ghostbtn small" onclick="loadCov()">actualiser</button></div>
+    <div class="pills" id="cov_stats" style="margin-bottom:.8rem"></div>
+    <div id="cov_regions" class="subhint" style="margin-bottom:.6rem"></div>
+    <div id="cov" class="grid"></div>
+  </div>
+
+  <!-- ===== groupes ===== -->
+  <div class="panel" id="p_groupes">
+    <p class="hint">les régions sont prédéfinies. créez vos propres groupes (ex. « littoral », « grandes villes », « comptes très actifs ») : ils sont utilisables comme cible ici et dans l'import de plan (<code>groupe:nom</code> ou simplement le nom).</p>
+    <div class="row"><input id="g_name" placeholder="nom du groupe" style="flex:1;min-width:160px">
+      <input id="g_codes" placeholder="codes, régions ou groupes : 75, 13, Bretagne, 33" style="flex:2;min-width:220px">
+      <button onclick="gSave()">enregistrer</button></div>
+    <p class="msg" id="g_gmsg"></p>
+    <div id="g_list" class="planwrap"></div>
+  </div>
+</div>
+
+<div class="modal" id="detailmodal" onclick="if(event.target===this) this.classList.remove('open')">
+  <div class="mpanel">
+    <button type="button" class="mclose" onclick="document.getElementById('detailmodal').classList.remove('open')" aria-label="fermer">&#10005;</button>
+    <h2 id="detailtitle">détail de l'envoi</h2>
+    <div id="detailbody" style="max-height:65vh;overflow:auto"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let CAMPS = [], CAMP = null, BANK = [], GROUPS = [], INTENTS = [], ROWS = [], INS = null, POSTS = [];
+const STATE_CLASS = {'programmé':'programme','en cours':'encours','publié':'publie','échecs':'echecs','partiel':'partiel','annulé':'annule','terminé':'termine'};
+const FEN = {sem:[[7.5,9],[12,13.5],[18,21]], we:[[10,12],[19,21]]};
+function tab(t){
+  document.querySelectorAll('.tab').forEach(e => e.classList.toggle('active', e.dataset.t === t));
+  document.querySelectorAll('.panel').forEach(e => e.classList.toggle('active', e.id === 'p_' + t));
+  if(t === 'calendrier') loadCal(); if(t === 'conseils') loadIns(); if(t === 'couverture') loadCov(); if(t === 'groupes') loadGroups();
+}
+/* ---------- campagnes ---------- */
+async function loadCamps(){
+  CAMPS = await api('/api/campagnes');
+  const box = document.getElementById('c_list');
+  box.innerHTML = CAMPS.length ? CAMPS.map(c => {
+    const st = {brouillon:'gris', active:'bleu', terminee:'noir'}[c.status] || '';
+    const ko = (c.counts.failed || 0) + (c.counts.rate_limited || 0);
+    return `<div class="asset ${CAMP && CAMP.id === c.id ? 'selected' : ''}" onclick="selectCamp(${c.id})">
+      <div class="body"><b>${esc(c.name)}</b>
+        <div class="subhint">${c.start_date || '…'} → ${c.end_date || '…'}</div>
+        <div class="cap" style="margin:.3rem 0">${esc(c.objective) || '<i>sans objectif noté</i>'}</div>
+        <div class="foot"><span class="badge ${st}">${c.status}</span><span class="badge gris">${c.n_posts} envoi(s)</span>
+          <span class="badge gris">${c.n_comptes} compte(s)</span>
+          ${c.counts.pending ? `<span class="badge">${c.counts.pending} à venir</span>` : ''}
+          ${c.counts.published ? `<span class="badge noir">${c.counts.published} publié(s)</span>` : ''}
+          ${ko ? `<span class="badge rouge">${ko} échec(s)</span>` : ''}</div></div></div>`;
+  }).join('') : '<p class="hint">aucune campagne. créez-en une pour commencer.</p>';
+}
+async function cCreate(){
+  const name = document.getElementById('n_name').value.trim();
+  if(!name){ setMsg('n_msg', false, 'donnez un nom.'); return; }
+  try{
+    const c = await api('/api/campagnes', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, start_date: document.getElementById('n_start').value, end_date: document.getElementById('n_end').value, objective: document.getElementById('n_obj').value})});
+    document.getElementById('c_new').style.display = 'none'; setMsg('n_msg', null, '');
+    await loadCamps(); selectCamp(c.id);
+  }catch(e){ setMsg('n_msg', false, e.message); }
+}
+async function selectCamp(id){
+  CAMP = await api(`/api/campagnes/${id}`);
+  POSTS = CAMP.posts || [];
+  document.getElementById('ws').style.display = '';
+  document.getElementById('ws_name').textContent = CAMP.name;
+  document.getElementById('ws_sub').textContent = `${CAMP.start_date || '…'} → ${CAMP.end_date || '…'} · ${CAMP.n_posts} envoi(s) · ${CAMP.n_cibles} cible(s) · ${CAMP.n_comptes} compte(s)` + (CAMP.objective ? ' · ' + CAMP.objective : '');
+  document.getElementById('ws_status').value = CAMP.status;
+  document.getElementById('ws_export').href = `/api/campagnes/${CAMP.id}/export.csv`;
+  await loadCamps();
+  const active = document.querySelector('.tab.active').dataset.t;
+  tab(active);
+  document.getElementById('ws').scrollIntoView({behavior:'smooth', block:'start'});
+}
+async function cStatus(){
+  try{ await api(`/api/campagnes/${CAMP.id}`, {method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name: CAMP.name, description: CAMP.description, objective: CAMP.objective, start_date: CAMP.start_date, end_date: CAMP.end_date, status: document.getElementById('ws_status').value})});
+    setMsg('ws_msg', true, 'statut enregistré'); loadCamps(); }catch(e){ setMsg('ws_msg', false, e.message); }
+}
+async function cShift(){
+  const m = prompt('décaler tous les envois à venir de combien de minutes ? (négatif pour avancer)', '15');
+  if(m === null || isNaN(parseInt(m))) return;
+  try{ const d = await api(`/api/campagnes/${CAMP.id}/decaler`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({minutes: parseInt(m)})});
+    setMsg('ws_msg', true, `✔ ${d.decales} envoi(s) décalé(s) de ${m} min`); selectCamp(CAMP.id); }catch(e){ setMsg('ws_msg', false, e.message); }
+}
+async function cCancelAll(){
+  if(!confirm(`annuler tous les envois encore à venir de « ${CAMP.name} » ?`)) return;
+  try{ const d = await api(`/api/campagnes/${CAMP.id}/annuler`, {method:'POST'}); setMsg('ws_msg', true, `✔ ${d.cancelled} envoi(s) annulé(s)`); selectCamp(CAMP.id); }catch(e){ setMsg('ws_msg', false, e.message); }
+}
+/* ---------- construire ---------- */
+async function loadBank(){ const d = await api('/api/banque?statut=pret'); BANK = d.items; bankRender(); }
+function bankRender(){
+  const q = document.getElementById('b_q').value.trim().toLowerCase();
+  const items = BANK.filter(a => !q || (a.title + ' ' + a.caption + ' ' + a.tags.join(' ')).toLowerCase().includes(q));
+  document.getElementById('b_list').innerHTML = items.length ? items.map(a => `
+    <div class="asset" onclick="addIntent(${a.id})" title="ajouter aux intentions">
+      <div class="thumb">${a.first_url ? `<img src="${esc(a.first_url)}" alt="" loading="lazy">` : 'sans visuel'}</div>
+      <div class="body"><b>${esc(a.title)}</b><div class="foot"><span class="badge">${a.type_label}</span>${!a.public ? '<span class="badge rouge">non public</span>' : ''}</div></div></div>`).join('')
+    : '<p class="hint">aucun post prêt dans la banque. <a href="/banque">alimentez-la</a>.</p>';
+}
+function addIntent(assetId){
+  const a = BANK.find(x => x.id === assetId); if(!a) return;
+  INTENTS.push({key: Date.now() + Math.random(), asset_id: a.id, title: a.title, media_type: a.media_type, media_url: a.media_url, caption: a.caption,
+                targets: 'all', when: '', stagger: false, taille_lot: 10, intervalle: 2, ordre: 'code', platform: 'instagram'});
+  renderIntents();
+}
+function renderIntents(){
+  const box = document.getElementById('i_list');
+  document.getElementById('i_count').textContent = INTENTS.length ? `${INTENTS.length} intention(s)` : '';
+  document.getElementById('gen_btn').disabled = !INTENTS.length;
+  const gopts = GROUPS.map(g => `<option value="${esc(g.name)}">${esc(g.name)} (${g.n})</option>`).join('');
+  box.innerHTML = INTENTS.length ? INTENTS.map((it, n) => `
+    <div class="card" style="padding:1rem;margin-bottom:.7rem">
+      <div class="row" style="justify-content:space-between"><b>${n + 1}. ${esc(it.title)}</b>
+        <div class="row"><span class="badge">${TYPE_LABEL[it.media_type] || it.media_type}</span><button class="ghostbtn small" onclick="INTENTS.splice(${n},1);renderIntents()">retirer</button></div></div>
+      <label class="lbl">cibles : all, codes, régions ou groupes, séparés par des virgules</label>
+      <div class="row"><input value="${esc(it.targets)}" oninput="INTENTS[${n}].targets = this.value" style="flex:2;min-width:200px">
+        <select onchange="if(this.value){ const cur = INTENTS[${n}].targets.trim(); INTENTS[${n}].targets = (cur && cur !== 'all') ? cur + ', ' + this.value : this.value; renderIntents(); }" style="flex:1;min-width:150px;margin:0">
+          <option value="">+ ajouter un groupe…</option><option value="all">tous les comptes</option>${gopts}</select></div>
+      <div class="row">
+        <div style="flex:1;min-width:200px"><label class="lbl">quand (heure de paris ; vide = immédiat)</label>
+          <input type="datetime-local" value="${esc(it.when)}" onchange="INTENTS[${n}].when = this.value"></div>
+        <div style="flex:1;min-width:220px"><label class="lbl">échelonner</label>
+          <div class="row"><label class="chk"><input type="checkbox" ${it.stagger ? 'checked' : ''} onchange="INTENTS[${n}].stagger = this.checked; renderIntents()"> par lots de</label>
+            <input type="number" min="1" value="${it.taille_lot}" style="width:70px;margin:0;padding:.4rem .6rem" onchange="INTENTS[${n}].taille_lot = +this.value" ${it.stagger ? '' : 'disabled'}>
+            <span class="subhint">comptes toutes les</span>
+            <input type="number" min="1" value="${it.intervalle}" style="width:70px;margin:0;padding:.4rem .6rem" onchange="INTENTS[${n}].intervalle = +this.value" ${it.stagger ? '' : 'disabled'}>
+            <span class="subhint">min</span>
+            <select style="width:auto;margin:0;padding:.4rem .6rem" onchange="INTENTS[${n}].ordre = this.value" ${it.stagger ? '' : 'disabled'}><option value="code" ${it.ordre === 'code' ? 'selected' : ''}>ordre des codes</option><option value="aleatoire" ${it.ordre === 'aleatoire' ? 'selected' : ''}>ordre aléatoire</option></select></div></div>
+      </div>
+      <label class="lbl">légende pour cet envoi (variables : {departement} {code} {compte} {region})</label>
+      <textarea rows="3" oninput="INTENTS[${n}].caption = this.value">${esc(it.caption)}</textarea>
+    </div>`).join('') : '<p class="hint">cliquez un post de la banque pour créer une intention.</p>';
+}
+function intentsPayload(){
+  return {seulement_actifs: document.getElementById('only_active').checked,
+          items: INTENTS.map(it => ({asset_id: it.asset_id, title: it.title, media_type: it.media_type, media_url: it.media_url, caption: it.caption,
+            platform: it.platform, targets: it.targets, when: it.when, taille_lot: it.stagger ? it.taille_lot : 0, intervalle: it.intervalle, ordre: it.ordre}))};
+}
+async function generate(){
+  setMsg('g_msg', null, 'génération…');
+  try{
+    const d = await api(`/api/campagnes/${CAMP.id}/generer`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(intentsPayload())});
+    ROWS = d.rows; INS = d.insights;
+    document.getElementById('gen_out').style.display = '';
+    document.getElementById('g_exclus').innerHTML = (d.exclus.length ? `${d.exclus.length} compte(s) non liés exclus : ${esc(d.exclus.slice(0, 20).join(', '))}${d.exclus.length > 20 ? '…' : ''}. ` : '') + (d.erreurs.length ? `<b style="color:var(--rouge)">${esc(d.erreurs.join(' | '))}</b>` : '');
+    renderRows(); renderIns(INS, 'g_ins', true);
+    setMsg('g_msg', d.erreurs.length ? false : null, d.erreurs.length ? 'corrigez les intentions en erreur' : '');
+    document.getElementById('gen_out').scrollIntoView({behavior:'smooth', block:'start'});
+  }catch(e){ setMsg('g_msg', false, e.message); }
+}
+function renderRows(){
+  document.getElementById('g_count').textContent = `${ROWS.length} envoi(s), ${ROWS.reduce((s, r) => s + r.targets.length, 0)} publication(s)`;
+  document.getElementById('prog_btn').textContent = `programmer ${ROWS.length} envoi(s)`;
+  document.getElementById('prog_btn').disabled = !ROWS.length || (INS && INS.compte.bloquant > 0);
+  document.getElementById('g_table').innerHTML = ROWS.length ? `<table class="plan"><thead><tr><th>#</th><th>quand</th><th>post</th><th>type</th><th>cibles</th><th>légende</th><th></th></tr></thead><tbody>` +
+    ROWS.map((r, n) => `<tr id="row${r.i}">
+      <td>${r.i}${r.lot ? `<div class="subhint">lot ${r.lot}</div>` : ''}</td>
+      <td><input type="datetime-local" value="${esc(r.when)}" onchange="ROWS[${n}].when = this.value"></td>
+      <td><b>${esc(r.title)}</b>${r.media_url ? `<div class="subhint" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${esc(r.media_url.split('\n')[0])}</div>` : ''}</td>
+      <td>${TYPE_LABEL[r.media_type] || r.media_type}</td>
+      <td title="${esc(r.targets.join(', '))}">${r.targets.length} compte(s)<div class="subhint">${esc(r.targets.slice(0, 8).join(', '))}${r.targets.length > 8 ? '…' : ''}</div></td>
+      <td class="cap">${esc((r.caption || '').slice(0, 90))}</td>
+      <td><button class="ghostbtn small" onclick="ROWS.splice(${n},1); renderRows(); reanalyse()">retirer</button></td></tr>`).join('') + '</tbody></table>' : '<p class="hint">aucun envoi.</p>';
+}
+async function reanalyse(){
+  try{ INS = await api(`/api/campagnes/${CAMP.id}/analyser`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({rows: ROWS})});
+    renderRows(); renderIns(INS, 'g_ins', true); }catch(e){ setMsg('g_msg', false, e.message); }
+}
+function renderIns(ins, boxId, withActions){
+  const box = document.getElementById(boxId);
+  if(!ins){ box.innerHTML = ''; return; }
+  const f = Object.entries(ins.stats.formats || {}).map(([k, v]) => `${v} ${TYPE_LABEL[k] || k}`).join(', ');
+  box.innerHTML = `<div class="score"><b>${ins.score}</b><div><div style="font-weight:800">score de plan sur 100</div><div class="subhint">${esc(ins.resume)} ${ins.stats.envois} envoi(s), ${ins.stats.cibles} publication(s), ${ins.stats.comptes} compte(s), ${ins.stats.jours} jour(s)${f ? ' · ' + f : ''}</div></div></div>` +
+    (ins.alertes.length ? ins.alertes.map((a, k) => `<div class="alert ${a.niveau}"><span class="lvl">${a.niveau}</span><div class="txt">${esc(a.message)}${a.suggestion ? `<div class="sug">→ ${esc(a.suggestion)}</div>` : ''}</div>
+      ${withActions && a.action ? `<button class="small" onclick="applyAction(${k})">appliquer</button>` : ''}
+      ${a.lignes && a.lignes.length && withActions ? `<button class="ghostbtn small" onclick="document.getElementById('row${a.lignes[0]}')?.scrollIntoView({behavior:'smooth',block:'center'})">voir</button>` : ''}</div>`).join('')
+    : '<div class="alert conseil"><span class="lvl">ok</span><div class="txt">rien à signaler : le plan respecte toutes les règles.</div></div>');
+}
+function applyAction(k){
+  const a = INS.alertes[k]; if(!a || !a.action) return;
+  const act = a.action;
+  const idx = ROWS.findIndex(r => r.i === act.ligne);
+  if(idx < 0) return;
+  if(act.type === 'deplacer'){ ROWS[idx].when = act.quand; }
+  else if(act.type === 'echelonner'){
+    const r = ROWS[idx]; const base = r.when ? new Date(r.when) : new Date();
+    const lots = []; for(let j = 0; j < r.targets.length; j += act.taille_lot) lots.push(r.targets.slice(j, j + act.taille_lot));
+    const news = lots.map((lot, n) => { const d = new Date(base.getTime() + n * act.intervalle * 60000); const pad = x => String(x).padStart(2, '0');
+      return {...r, i: 0, targets: lot, when: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`, stagger: true, lot: `${n+1}/${lots.length}`}; });
+    ROWS.splice(idx, 1, ...news);
+  }
+  ROWS.forEach((r, n) => r.i = n + 1);
+  renderRows(); reanalyse();
+}
+async function programmer(){
+  if(!ROWS.length) return;
+  const n = ROWS.reduce((s, r) => s + r.targets.length, 0);
+  if(!confirm(`programmer ${ROWS.length} envoi(s), soit ${n} publication(s) ? ils partiront automatiquement aux heures prévues (heure de paris) tant que l'app tourne.`)) return;
+  setMsg('g_msg', null, 'programmation…');
+  try{
+    const d = await api(`/api/campagnes/${CAMP.id}/programmer`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({rows: ROWS})});
+    setMsg('g_msg', !d.erreurs.length, `✔ ${d.ok} envoi(s) programmé(s)` + (d.erreurs.length ? ` — erreurs : ${d.erreurs.join(' | ')}` : ''));
+    if(d.ok){ ROWS = []; INTENTS = []; renderIntents(); document.getElementById('gen_out').style.display = 'none'; await selectCamp(CAMP.id); tab('calendrier'); }
+  }catch(e){ setMsg('g_msg', false, e.message); }
+}
+/* ---------- calendrier ---------- */
+function inFen(d){ const h = d.getHours() + d.getMinutes()/60; const f = d.getDay() === 0 || d.getDay() === 6 ? FEN.we : FEN.sem; return f.some(([a, b]) => h >= a && h <= b); }
+async function loadCal(){
+  const c = await api(`/api/campagnes/${CAMP.id}`); POSTS = c.posts || [];
+  const timed = POSTS.filter(p => p.when);
+  const box = document.getElementById('cal');
+  if(!timed.length){ box.innerHTML = '<p class="hint">aucun envoi programmé à une heure précise.</p>'; }
+  else {
+    const days = [...new Set(timed.map(p => p.when.slice(0, 10)))].sort();
+    const pad = x => String(x).padStart(2, '0');
+    let html = `<div class="agenda" style="grid-template-columns:52px repeat(${days.length}, minmax(110px,1fr))"><div class="h"></div>` +
+      days.map(d => `<div class="h">${new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday:'short', day:'2-digit', month:'2-digit'})}</div>`).join('');
+    for(let h = 6; h <= 23; h++){
+      html += `<div class="hr">${pad(h)}h</div>`;
+      for(const d of days){
+        const cell = new Date(`${d}T${pad(h)}:30`);
+        const ps = timed.filter(p => p.when.slice(0, 10) === d && +p.when.slice(11, 13) === h).sort((a, b) => a.when.localeCompare(b.when));
+        html += `<div class="cell ${inFen(cell) ? 'fen' : ''}">` + ps.map(p => `<span class="chip ${STATE_CLASS[p.state] || ''}" onclick="planDetail(${p.id})" title="${esc(p.label)} · ${esc(p.caption.slice(0, 80))}">${p.when.slice(11, 16)} ${p.type_label} · ${p.total}</span>`).join('') + '</div>';
+      }
+    }
+    box.innerHTML = html + '</div>';
+  }
+  const rest = POSTS.filter(p => !p.when);
+  document.getElementById('cal_list').innerHTML = (POSTS.length ? `<table class="plan"><thead><tr><th>quand</th><th>type</th><th>cibles</th><th>légende</th><th>état</th><th></th></tr></thead><tbody>` +
+    POSTS.map(p => `<tr><td><b>${fmtWhen(p.when)}</b>${p.when ? '' : `<div class="subhint">créé ${fmtWhen(p.created_at)}</div>`}</td><td>${p.type_label}${p.n_urls > 1 ? ` (${p.n_urls})` : ''}</td>
+      <td>${p.is_national ? `tous (${p.total})` : p.targets.length + ' compte(s)'}</td><td class="cap">${esc(p.caption.slice(0, 80))}</td>
+      <td><span class="st ${STATE_CLASS[p.state] || ''}">${p.state}</span><div class="subhint">${p.counts.published || 0} publié · ${p.counts.pending || 0} en attente · ${(p.counts.failed || 0) + (p.counts.rate_limited || 0)} échec</div></td>
+      <td><div class="act"><button class="ghostbtn small" onclick="planDetail(${p.id})">détail</button>${p.counts.pending ? `<button class="danger small" onclick="planCancel(${p.id})">annuler</button>` : ''}${(p.counts.failed || 0) + (p.counts.rate_limited || 0) ? `<button class="small" onclick="planRetry(${p.id})">relancer</button>` : ''}</div></td></tr>`).join('') + '</tbody></table>' : '<p class="hint">aucun envoi dans cette campagne.</p>');
+}
+async function planDetail(id){
+  const rows = await api(`/api/posts/${id}/status`);
+  const p = POSTS.find(x => x.id === id);
+  const lab = {pending:'en attente', published:'publié', failed:'échec', rate_limited:'quota atteint', cancelled:'annulé'};
+  document.getElementById('detailtitle').textContent = `envoi #${id}` + (p ? ` · ${fmtWhen(p.when)} · ${p.type_label}` : '');
+  document.getElementById('detailbody').innerHTML = (p ? `<p class="hint">${esc(p.caption)}</p>` : '') + `<table class="plan"><thead><tr><th>compte</th><th>légende personnalisée</th><th>état</th><th>message</th></tr></thead><tbody>` +
+    rows.map(t => `<tr><td><b>${t.dept}</b> ${esc(DEPTS[t.dept] || '')}<div class="subhint">${esc(ACCOUNTS[t.dept] ? ACCOUNTS[t.dept].u : '')}</div></td><td class="cap">${p ? esc(renderCaption(p.caption, t.dept).slice(0, 100)) : ''}</td>
+      <td><span class="st ${t.status === 'published' ? 'publie' : t.status === 'pending' ? 'programme' : t.status === 'cancelled' ? 'annule' : 'erreur'}">${lab[t.status] || t.status}</span></td><td class="cap">${esc(t.error || '')}</td></tr>`).join('') + '</tbody></table>';
+  document.getElementById('detailmodal').classList.add('open');
+}
+async function planCancel(id){ if(!confirm(`annuler les envois en attente de #${id} ?`)) return; try{ await api(`/api/posts/${id}/cancel`, {method:'POST'}); loadCal(); }catch(e){ setMsg('ws_msg', false, e.message); } }
+async function planRetry(id){ try{ await api(`/api/posts/${id}/retry`, {method:'POST'}); loadCal(); }catch(e){ setMsg('ws_msg', false, e.message); } }
+/* ---------- conseils ---------- */
+async function loadIns(){
+  try{
+    const d = await api(`/api/campagnes/${CAMP.id}/insights`);
+    renderIns(d, 'ins', false);
+    document.getElementById('regles').innerHTML = d.regles.map(r => `<div class="regle"><b>${esc(r.titre)}</b>${esc(r.texte)}</div>`).join('');
+  }catch(e){ document.getElementById('ins').innerHTML = `<p class="msg ko">${esc(e.message)}</p>`; }
+}
+/* ---------- couverture ---------- */
+async function loadCov(){
+  const d = await api(`/api/campagnes/${CAMP.id}/couverture`);
+  document.getElementById('cov_stats').innerHTML = `<div class="pill">départements couverts<b>${d.couverts} / ${d.total}</b></div><div class="pill">envois prévus<b>${d.departements.reduce((s, x) => s + x.n, 0)}</b></div><div class="pill">déjà publiés<b>${d.departements.reduce((s, x) => s + x.publies, 0)}</b></div>`;
+  const byR = {}; d.departements.forEach(x => { byR[x.region] = byR[x.region] || {n: 0, c: 0}; byR[x.region].n += x.n; if(x.n) byR[x.region].c++; });
+  document.getElementById('cov_regions').innerHTML = Object.entries(byR).map(([r, v]) => `<span class="badge ${v.c ? '' : 'gris'}">${esc(r)} : ${v.c} dép., ${v.n} envoi(s)</span>`).join(' ');
+  document.getElementById('cov').innerHTML = d.departements.map(x => `<div class="acc n${Math.min(x.n, 3)} ${x.status !== 'active' ? 'unlinked' : ''}" title="${esc(x.region)}"><b>${x.code}</b> ${esc(x.name)}<small>${x.n ? x.n + ' envoi(s)' + (x.publies ? ', ' + x.publies + ' publié(s)' : '') : 'aucun'}${x.status !== 'active' ? ' · non lié' : ''}</small></div>`).join('');
+}
+/* ---------- groupes ---------- */
+async function loadGroups(){
+  GROUPS = await api('/api/groupes');
+  const box = document.getElementById('g_list');
+  if(box) box.innerHTML = `<table class="plan"><thead><tr><th>groupe</th><th>type</th><th>comptes</th><th></th></tr></thead><tbody>` +
+    GROUPS.map(g => `<tr><td><b>${esc(g.name)}</b></td><td>${g.kind === 'region' ? 'région' : 'personnalisé'}</td><td>${g.n} · <span class="subhint">${esc(g.codes.join(', '))}</span></td>
+      <td>${g.kind === 'custom' ? `<button class="ghostbtn small" onclick="document.getElementById('g_name').value='${esc(g.name)}';document.getElementById('g_codes').value='${esc(g.codes.join(', '))}'">modifier</button> <button class="danger small" onclick="gDel(${g.id})">supprimer</button>` : ''}</td></tr>`).join('') + '</tbody></table>';
+  renderIntents();
+}
+async function gSave(){
+  try{ await api('/api/groupes', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: document.getElementById('g_name').value, codes: document.getElementById('g_codes').value})});
+    setMsg('g_gmsg', true, 'groupe enregistré'); loadGroups(); }catch(e){ setMsg('g_gmsg', false, e.message); }
+}
+async function gDel(id){ if(!confirm('supprimer ce groupe ?')) return; try{ await api(`/api/groupes/${id}`, {method:'DELETE'}); loadGroups(); }catch(e){ setMsg('g_gmsg', false, e.message); } }
+/* ---------- init ---------- */
+(async () => { await Promise.all([loadCamps(), loadBank(), loadGroups()]); renderIntents();
+  const first = CAMPS.find(c => c.status === 'active') || CAMPS[0]; if(first) selectCamp(first.id); })();
+document.addEventListener('keydown', e => { if(e.key === 'Escape') document.getElementById('detailmodal').classList.remove('open'); });
+</script>
+{% endblock %}

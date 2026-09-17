@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from . import instagram_api as ig
 from .database import Account, InsightSnapshot, Post, PostTarget, SessionLocal
+from .departments import render_caption
 from .security import decrypt_token, encrypt_token
 
 log = logging.getLogger("igmanager")
@@ -51,7 +52,7 @@ async def process_pending_posts():
                     token = decrypt_token(acc.fb_page_token_enc)
                     media_id = await ig.publish_facebook(
                         acc.fb_page_id, token, t.post.media_url,
-                        t.post.caption, t.post.media_type)
+                        render_caption(t.post.caption, acc.department_code, acc.ig_username), t.post.media_type)
                 else:
                     if not acc.access_token_enc:
                         t.status = "failed"
@@ -61,7 +62,7 @@ async def process_pending_posts():
                     token = decrypt_token(acc.access_token_enc)
                     media_id = await ig.publish_media(
                         acc.ig_user_id, token, t.post.media_url,
-                        t.post.caption, t.post.media_type)
+                        render_caption(t.post.caption, acc.department_code, acc.ig_username), t.post.media_type)
                     acc.posts_today += 1
                 t.status, t.ig_media_id, t.published_at = "published", media_id, now
             except ig.InstagramAPIError as e:
